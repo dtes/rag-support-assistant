@@ -1,19 +1,19 @@
 """
-RAG Service - основная логика поиска и генерации ответов
+RAG Service - main logic for search and answer generation
 """
 import os
 import weaviate
 from anthropic import Anthropic
 from sentence_transformers import SentenceTransformer
 
-# Конфигурация
+# Configuration
 WEAVIATE_URL = os.getenv("WEAVIATE_URL", "http://weaviate:8080")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"  # Lightweight and fast local model
 
 class RAGService:
     def __init__(self):
-        """Инициализация сервиса"""
+        """Initialize the service"""
         self.weaviate_client = None
         self.anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -25,7 +25,7 @@ class RAGService:
         self.connect_weaviate()
 
     def connect_weaviate(self):
-        """Подключение к Weaviate"""
+        """Connect to Weaviate"""
         try:
             self.weaviate_client = weaviate.connect_to_custom(
                 http_host="weaviate",
@@ -35,94 +35,106 @@ class RAGService:
                 grpc_port=50051,
                 grpc_secure=False,
             )
-            print("✓ Подключение к Weaviate установлено")
+            print("✓ Connected to Weaviate")
         except Exception as e:
-            print(f"✗ Ошибка подключения к Weaviate: {e}")
+            print(f"✗ Error connecting to Weaviate: {e}")
             self.weaviate_client = None
 
     def get_embedding(self, text: str) -> list[float]:
-        """Создание эмбеддинга для текста с использованием локальной модели"""
+        """Create embedding for text using local model"""
         try:
             embedding = self.embedding_model.encode(text, convert_to_tensor=False)
             return embedding.tolist()
         except Exception as e:
-            print(f"✗ Ошибка создания эмбеддинга: {e}")
+            print(f"✗ Error creating embedding: {e}")
             return None
-    
+
     def search_documents(self, query: str, top_k: int = 3):
-        """Поиск релевантных документов"""
+        """Search for relevant documents"""
         if not self.weaviate_client:
             self.connect_weaviate()
-        
+
         if not self.weaviate_client:
             return []
-        
+
         try:
-            # Создание эмбеддинга для запроса
+            # Create embedding for query
             query_embedding = self.get_embedding(query)
             if query_embedding is None:
                 return []
-            
-            # Получение коллекции
+
+            print(f"Query embedding dimension: {len(query_embedding)}")
+
+            # Get collection
             documentation = self.weaviate_client.collections.get("Documentation")
-            
-            # Векторный поиск
+
+            # Check if collection has data
+            collection_count = len(documentation)
+            print(f"Documents in collection: {collection_count}")
+
+            if collection_count == 0:
+                print("⚠ Collection is empty. Load documents via loader.py")
+                return []
+
+            # Vector search
             response = documentation.query.near_vector(
                 near_vector=query_embedding,
                 limit=top_k,
-                return_metadata=['distance']
+                return_metadata=weaviate.classes.query.MetadataQuery(distance=True)
             )
-            
-            # Формирование результатов
+
+            # Format results
             results = []
             for item in response.objects:
                 results.append({
-                    'content': item.properties['content'],
-                    'filename': item.properties['filename'],
-                    'title': item.properties['title'],
-                    'chunk_id': item.properties['chunk_id'],
+                    'content': item.properties.get('content', ''),
+                    'filename': item.properties.get('filename', ''),
+                    'title': item.properties.get('title', ''),
+                    'chunk_id': item.properties.get('chunk_id', 0),
                     'distance': item.metadata.distance if item.metadata else None
                 })
-            
+
             return results
-            
+
         except Exception as e:
-            print(f"✗ Ошибка поиска: {e}")
+            import traceback
+            print(f"✗ Search error: {e}")
+            print(f"Traceback: {traceback.format_exc()}")
             return []
-    
+
     def generate_answer(self, query: str, context_docs: list) -> dict:
-        """Генерация ответа с использованием Claude"""
+        """Generate answer using Claude"""
         if not context_docs:
             return {
-                'answer': 'Извините, не удалось найти релевантную информацию в документации.',
+                'answer': 'Sorry, I could not find relevant information in the documentation.',
                 'sources': []
             }
-        
-        # Формирование контекста из найденных документов
+
+        # Format context from found documents
         context = "\n\n---\n\n".join([
-            f"Документ: {doc['title']} ({doc['filename']})\n{doc['content']}"
+            f"Document: {doc['title']} ({doc['filename']})\n{doc['content']}"
             for doc in context_docs
         ])
-        
-        # Промпт для Claude
-        prompt = f"""Ты - AI-ассистент технической поддержки. Твоя задача - отвечать на вопросы пользователей на основе предоставленной документации сайта.
 
-Документация:
+        # Prompt for Claude
+        prompt = f"""You are a technical support AI assistant. Your task is to answer user questions based on the provided website documentation.
+
+Documentation:
 {context}
 
-Вопрос пользователя: {query}
+User question: {query}
 
-Инструкции:
-1. Дай точный и полезный ответ на основе ТОЛЬКО предоставленной документации
-2. Если информации недостаточно, честно скажи об этом
-3. Отвечай на русском языке
-4. Будь кратким и конкретным
-5. Используй дружелюбный тон
+Instructions:
+1. Provide an accurate and helpful answer based ONLY on the provided documentation
+2. If there is insufficient information, say so honestly
+3. Answer in English
+4. Be concise and specific
+5. Use a friendly tone
 
-Ответ:"""
-        
+Answer:"""
+
         try:
-            # Запрос к Claude API
+            # Request to Claude API
             message = self.anthropic_client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=1000,
@@ -130,10 +142,10 @@ class RAGService:
                     {"role": "user", "content": prompt}
                 ]
             )
-            
+
             answer = message.content[0].text
-            
-            # Формирование источников
+
+            # Format sources
             sources = [
                 {
                     'title': doc['title'],
@@ -141,8 +153,8 @@ class RAGService:
                 }
                 for doc in context_docs
             ]
-            
-            # Удаление дубликатов источников
+
+            # Remove duplicate sources
             unique_sources = []
             seen = set()
             for source in sources:
@@ -150,40 +162,40 @@ class RAGService:
                 if key not in seen:
                     seen.add(key)
                     unique_sources.append(source)
-            
+
             return {
                 'answer': answer,
                 'sources': unique_sources
             }
-            
+
         except Exception as e:
-            print(f"✗ Ошибка генерации ответа: {e}")
+            print(f"✗ Error generating answer: {e}")
             return {
-                'answer': f'Произошла ошибка при генерации ответа: {str(e)}',
+                'answer': f'An error occurred while generating the answer: {str(e)}',
                 'sources': []
             }
-    
+
     def process_query(self, query: str) -> dict:
-        """Полный RAG pipeline: поиск + генерация"""
-        # Шаг 1: Поиск релевантных документов
-        print(f"Запрос: {query}")
+        """Full RAG pipeline: search + generation"""
+        # Step 1: Search for relevant documents
+        print(f"Query: {query}")
         docs = self.search_documents(query, top_k=3)
-        print(f"Найдено документов: {len(docs)}")
-        
-        # Шаг 2: Генерация ответа
+        print(f"Documents found: {len(docs)}")
+
+        # Step 2: Generate answer
         result = self.generate_answer(query, docs)
-        
+
         return result
-    
+
     def get_stats(self) -> dict:
-        """Получение статистики БД"""
+        """Get database statistics"""
         if not self.weaviate_client:
             self.connect_weaviate()
-        
+
         try:
             documentation = self.weaviate_client.collections.get("Documentation")
             count = len(documentation)
-            
+
             return {
                 'total_chunks': count,
                 'status': 'ok'
@@ -193,8 +205,8 @@ class RAGService:
                 'total_chunks': 0,
                 'status': f'error: {str(e)}'
             }
-    
+
     def close(self):
-        """Закрытие соединений"""
+        """Close connections"""
         if self.weaviate_client:
             self.weaviate_client.close()

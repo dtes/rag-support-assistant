@@ -53,7 +53,7 @@ def create_schema(client):
             properties=[
                 Property(name="content", data_type=DataType.TEXT),
                 Property(name="filename", data_type=DataType.TEXT),
-                Property(name="chunk_id", data_type=DataType.INT),
+                Property(name="chunk_id", data_type=DataType.NUMBER),
                 Property(name="title", data_type=DataType.TEXT),
             ],
             vectorizer_config=Configure.Vectorizer.none(),
@@ -102,13 +102,18 @@ def load_documents():
     
     # Получение коллекции
     documentation = client.collections.get("Documentation")
-    
-    # Проверка наличия данных
+
+    # Очистка коллекции перед загрузкой
     existing_count = len(documentation)
     if existing_count > 0:
-        print(f"✓ В базе уже есть {existing_count} документов. Пропускаем загрузку.")
-        client.close()
-        return True
+        print(f"Найдено {existing_count} существующих документов. Очистка коллекции...")
+        # Удаляем коллекцию и создаем заново
+        client.collections.delete("Documentation")
+        if not create_schema(client):
+            client.close()
+            return False
+        documentation = client.collections.get("Documentation")
+        print("✓ Коллекция очищена")
     
     # Инициализация текстового сплиттера
     text_splitter = RecursiveCharacterTextSplitter(
@@ -160,6 +165,9 @@ def load_documents():
                 if embedding is None:
                     print(f"  ✗ Пропуск чанка {chunk_id} из-за ошибки эмбеддинга")
                     continue
+
+                if chunk_id == 0:
+                    print(f"  → Embedding dimension: {len(embedding)}")
 
                 # Добавление в Weaviate
                 documentation.data.insert(

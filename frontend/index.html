@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Support Assistant</title>
+    <!-- Markdown parser -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -88,6 +90,75 @@
             background: white;
             color: #333;
             border: 1px solid #e0e0e0;
+        }
+
+        /* Markdown formatting styles */
+        .message-bubble p {
+            margin: 0 0 10px 0;
+        }
+
+        .message-bubble p:last-child {
+            margin-bottom: 0;
+        }
+
+        .message-bubble strong {
+            font-weight: 600;
+        }
+
+        .message-bubble em {
+            font-style: italic;
+        }
+
+        .message-bubble code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .message-bubble pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+
+        .message-bubble pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .message-bubble ul, .message-bubble ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+
+        .message-bubble li {
+            margin: 5px 0;
+        }
+
+        .message-bubble blockquote {
+            border-left: 3px solid #667eea;
+            margin: 10px 0;
+            padding-left: 15px;
+            color: #666;
+        }
+
+        .message-bubble h1, .message-bubble h2, .message-bubble h3,
+        .message-bubble h4, .message-bubble h5, .message-bubble h6 {
+            margin: 15px 0 10px 0;
+            font-weight: 600;
+        }
+
+        .message-bubble a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .message-bubble a:hover {
+            text-decoration: underline;
         }
 
         .message-sources {
@@ -370,7 +441,13 @@
 
             const bubbleDiv = document.createElement('div');
             bubbleDiv.className = 'message-bubble';
-            bubbleDiv.textContent = text;
+
+            // Use markdown rendering for assistant messages, plain text for user messages
+            if (sender === 'assistant') {
+                bubbleDiv.innerHTML = marked.parse(text);
+            } else {
+                bubbleDiv.textContent = text;
+            }
 
             messageDiv.appendChild(bubbleDiv);
 

@@ -54,7 +54,7 @@ Question → Embedding → Vector Search → Context + Question → LLM → Answ
 **Technology Stack:**
 - **Frontend:** HTML5, CSS3, Vanilla JavaScript
 - **Backend:** Python 3.11, FastAPI, Uvicorn
-- **Vector DB:** Weaviate 1.23.0
+- **Vector DB:** Weaviate 1.33.7
 - **Embeddings:** Local sentence-transformers (all-MiniLM-L6-v2)
 - **LLM:** Anthropic Claude Sonnet 4
 - **Orchestration:** Docker Compose
