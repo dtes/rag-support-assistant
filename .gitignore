@@ -25,7 +25,7 @@ dist/
 Thumbs.db
 
 # Data files (не включаем в репозиторий)
-data/*.md
+#data/*.md
 
 # Docker
 docker-compose.override.yml

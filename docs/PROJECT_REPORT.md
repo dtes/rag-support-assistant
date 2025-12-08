@@ -1,244 +1,238 @@
-# Development of RAG-based AI system
+# Development of RAG-based AI System
 
-**Студент:** [Ваше имя и фамилия]  
-**Дата:** 08.12.2025
+## 1. Project Description
 
----
+### Core Idea
+**AI Assistant for Website Technical Support** - an intelligent system that automatically answers user questions using website documentation as a knowledge source.
 
-## 1. Описание проекта
+### Concept
+The system implements a RAG (Retrieval-Augmented Generation) approach:
+- Documentation is split into semantic chunks
+- Each chunk is vectorized and stored in a vector database
+- When a user asks a question, the system finds relevant fragments
+- An LLM generates an accurate answer based on the retrieved information
 
-### Основная идея
-**AI-ассистент для технической поддержки сайта** - интеллектуальная система, которая автоматически отвечает на вопросы пользователей, используя документацию сайта как источник знаний.
-
-### Концепция
-Система реализует RAG (Retrieval-Augmented Generation) подход:
-- Документация разбивается на семантические фрагменты (чанки)
-- Каждый чанк векторизуется и сохраняется в векторной БД
-- При вопросе пользователя система находит релевантные фрагменты
-- LLM генерирует точный ответ на основе найденной информации
-
-### Детали дизайна
+### Design Details
 
 **Frontend:**
-- Современный веб-интерфейс с градиентным дизайном
-- Responsive layout для всех устройств
-- Real-time чат с индикатором печати
-- Отображение источников информации
+- Modern web interface with gradient design
+- Responsive layout for all devices
+- Real-time chat with typing indicator
+- Display of information sources
 
 **Backend:**
-- FastAPI - быстрый и современный Python web framework
-- Модульная архитектура: main.py (API) + rag_service.py (логика) + loader.py (загрузчик)
-- Асинхронная обработка запросов
-- Автоматическая загрузка данных при старте
+- FastAPI - fast and modern Python web framework
+- Modular architecture: main.py (API) + rag_service.py (logic) + loader.py (loader)
+- Asynchronous request processing
+- Automatic data loading on startup
 
 **RAG Pipeline:**
 ```
-Вопрос → Эмбеддинг → Векторный поиск → Контекст + Вопрос → LLM → Ответ
+Question → Embedding → Vector Search → Context + Question → LLM → Answer
 ```
 
-### Dataset концепция
+### Dataset Concept
 
-**Формат данных:**
-- Markdown файлы (.md) с документацией сайта
-- Структурированный текст с заголовками
-- Объем: 20 статей документации
+**Data Format:**
+- Markdown files (.md) with website documentation
+- Structured text with headers
+- Volume: 20 documentation articles
 
-**Обработка данных:**
-- Автоматическое разбиение на чанки (~500 символов)
-- Overlap 50 символов для сохранения контекста
-- Извлечение метаданных (название файла, заголовок)
-- Векторизация каждого чанка
+**Data Processing:**
+- Automatic splitting into chunks (~500 characters)
+- Overlap of 50 characters to preserve context
+- Metadata extraction (filename, title)
+- Vectorization of each chunk
 
-**Хранение:**
-- Векторная БД: Weaviate
-- Схема: content (текст), filename, title, chunk_id
-- Векторы: 1536 размерность (text-embedding-3-small)
+**Storage:**
+- Vector Database: Weaviate
+- Schema: content (text), filename, title, chunk_id
+- Vectors: 384 dimensions (all-MiniLM-L6-v2)
 
-### Технические детали системы
+### System Technical Details
 
-**Технологический стек:**
+**Technology Stack:**
 - **Frontend:** HTML5, CSS3, Vanilla JavaScript
 - **Backend:** Python 3.11, FastAPI, Uvicorn
 - **Vector DB:** Weaviate 1.23.0
-- **Embeddings:** OpenAI text-embedding-3-small
+- **Embeddings:** Local sentence-transformers (all-MiniLM-L6-v2)
 - **LLM:** Anthropic Claude Sonnet 4
 - **Orchestration:** Docker Compose
 
-**Компоненты:**
-1. **Weaviate Container** - векторная база данных
-2. **Backend Container** - API и RAG логика
-3. **Auto-loader** - скрипт индексации
-4. **Web UI** - интерфейс пользователя
+**Components:**
+1. **Weaviate Container** - vector database
+2. **Backend Container** - API and RAG logic
+3. **Auto-loader** - indexing script
+4. **Web UI** - user interface
 
 **API Endpoints:**
-- `GET /` - Веб-интерфейс
-- `POST /chat` - Обработка вопросов (основной RAG endpoint)
-- `GET /health` - Проверка здоровья системы
-- `GET /stats` - Статистика БД
+- `GET /` - Web interface
+- `POST /chat` - Question processing (main RAG endpoint)
+- `GET /health` - System health check
+- `GET /stats` - Database statistics
 
-### Требования
+### Requirements
 
-**Системные:**
+**System:**
 - Docker Engine 20.10+
 - Docker Compose 2.0+
-- 16GB RAM (рекомендуется)
-- 5GB свободного места на диске
+- 8GB RAM (minimum), 16GB RAM (recommended)
+- 5GB free disk space
 
-**API Ключи:**
-- Anthropic Claude API (для генерации ответов)
-- OpenAI API (для создания эмбеддингов)
+**API Keys:**
+- Anthropic Claude API (for answer generation)
 
-**Сетевые:**
-- Порт 8000 для Backend/UI
-- Порт 8080 для Weaviate
-- Интернет-соединение для API
+**Network:**
+- Port 8000 for Backend/UI
+- Port 8080 for Weaviate
+- Internet connection for Anthropic API
 
-### Ограничения
+### Limitations
 
-**Функциональные:**
-- Работает только с текстовой документацией в Markdown
-- Поддержка русского и английского языков
-- Максимальный размер контекста: ~4000 токенов
-- Ограничения API провайдеров (rate limits)
+**Functional:**
+- Works only with text documentation in Markdown format
+- Support for Russian and English languages
+- Maximum context size: ~4000 tokens
+- API provider limitations (rate limits)
 
-**Технические:**
-- Требуется Docker (не работает без контейнеризации)
-- Зависимость от внешних API (Anthropic, OpenAI)
-- Холодный старт: первый запрос может быть медленным
-- Векторный поиск: top-3 документа (настраивается)
+**Technical:**
+- Requires Docker (does not work without containerization)
+- Dependency on external API (Anthropic only)
+- Cold start: first request may be slow
+- Vector search: top-3 documents (configurable)
 
 ---
 
-## 2. Выполнение 9 шагов задания
+## 2. Completion of 9 Assignment Steps
 
-### Шаг 1: Идея и описание ✓
-**Артефакт:** `README.md`  
-Создан полный файл с описанием идеи, концепции, технических деталей, требований и ограничений.
+### Step 1: Idea and Description ✓
+**Artifact:** `README.md`
+Complete file created with idea description, concept, technical details, requirements, and limitations.
 
-### Шаг 2: Подготовка данных ✓
-**Артефакт:** Папка `data/`  
-Подготовлена папка для размещения .md файлов с документацией. Инструкция по добавлению данных в README.md.
+### Step 2: Data Preparation ✓
+**Artifact:** `data/` folder
+Folder prepared for placing .md files with documentation. Instructions for adding data in README.md.
 
-### Шаг 3: Локальная база данных ✓
-**Артефакт:** `docker-compose.yml` (секция weaviate)  
-Weaviate запускается в Docker контейнере с:
-- Векторным поиском
-- Persistence storage
+### Step 3: Local Database ✓
+**Artifact:** `docker-compose.yml` (weaviate section)
+Weaviate runs in a Docker container with:
+- Vector search
+- Persistent storage
 - Healthcheck
-- Схема создается автоматически
+- Schema created automatically
 
-### Шаг 4: Embeddings клиент ✓
-**Артефакт:** `backend/rag_service.py` (метод `get_embedding`)  
-Использует OpenAI API с моделью text-embedding-3-small:
-- Размер вектора: 1536 измерений
-- Быстрая генерация
-- Высокое качество
+### Step 4: Embeddings Client ✓
+**Artifact:** `backend/rag_service.py` (`get_embedding` method)
+Uses local sentence-transformers model (all-MiniLM-L6-v2):
+- Vector size: 384 dimensions
+- Fast local generation (no API calls)
+- High quality semantic embeddings
+- No external dependencies for embeddings
 
-### Шаг 5: Заполнение базы данных ✓
-**Артефакт:** `backend/loader.py`  
-Автоматический скрипт, который:
-- Читает все .md файлы из папки data/
-- Разбивает на чанки (RecursiveCharacterTextSplitter)
-- Создает эмбеддинги для каждого чанка
-- Загружает в Weaviate с метаданными
-- Запускается автоматически при старте системы
+### Step 5: Database Population ✓
+**Artifact:** `backend/loader.py`
+Automatic script that:
+- Reads all .md files from data/ folder
+- Splits into chunks (RecursiveCharacterTextSplitter)
+- Creates embeddings for each chunk using local model
+- Loads into Weaviate with metadata
+- Runs automatically on system startup
 
-### Шаг 6: LLM клиент ✓
-**Артефакт:** `backend/rag_service.py` (метод `generate_answer`)  
-Интеграция с Anthropic Claude API:
-- Модель: claude-sonnet-4-20250514
-- Обработка request-response
-- Контекст: найденные документы + вопрос пользователя
-- Генерация точного ответа
+### Step 6: LLM Client ✓
+**Artifact:** `backend/rag_service.py` (`generate_answer` method)
+Integration with Anthropic Claude API:
+- Model: claude-sonnet-4-20250514
+- Request-response processing
+- Context: retrieved documents + user question
+- Accurate answer generation
 
-### Шаг 7: UI реализация ✓
-**Артефакт:** `frontend/index.html`  
-Веб-интерфейс с:
-- Чат-интерфейсом в реальном времени
-- Отправка вопросов через POST /chat
-- Отображение ответов и источников
-- Примеры вопросов для быстрого старта
+### Step 7: UI Implementation ✓
+**Artifact:** `frontend/index.html`
+Web interface with:
+- Real-time chat interface
+- Question submission via POST /chat
+- Display of answers and sources
+- Example questions for quick start
 
-### Шаг 8: Объединение RAG системы ✓
-**Артефакты:** `backend/main.py`, `backend/rag_service.py`  
-Полный RAG pipeline:
-1. UI → Вопрос пользователя
-2. Создание эмбеддинга для вопроса (OpenAI)
-3. Векторный поиск в Weaviate (top-3)
-4. Формирование контекста из найденных документов
-5. Запрос к Claude API с контекстом
-6. Ответ пользователю через UI
+### Step 8: RAG System Integration ✓
+**Artifacts:** `backend/main.py`, `backend/rag_service.py`
+Complete RAG pipeline:
+1. UI → User question
+2. Create embedding for question (local model)
+3. Vector search in Weaviate (top-3)
+4. Form context from retrieved documents
+5. Request to Claude API with context
+6. Answer to user via UI
 
-Метод `process_query` в `rag_service.py` реализует весь pipeline.
+The `process_query` method in `rag_service.py` implements the entire pipeline.
 
-### Шаг 9: Видео демонстрация ✓
-**Ссылка:** [Будет добавлена после записи видео]
+### Step 9: Video Demonstration ✓
+**Link:** [To be added after recording]
 
-Видео покажет:
-- Запуск системы через Docker Compose
-- Автоматическую загрузку документации
-- Работу Weaviate (векторная БД)
-- Создание эмбеддингов
-- Веб-интерфейс
-- Примеры вопросов и ответов
-- Демонстрацию источников информации
+The video will show:
+- System startup via Docker Compose
+- Automatic documentation loading
+- Weaviate operation (vector DB)
+- Local embedding generation
+- Web interface
+- Example questions and answers
+- Information sources demonstration
 
 ---
 
-## 3. Структура проекта
+## 3. Project Structure
 
 ```
 rag-support-assistant/
-├── README.md                       # Полная документация
-├── QUICKSTART.md                   # Быстрый старт для проверки
-├── docker-compose.yml              # Оркестрация контейнеров
-├── .env.example                    # Шаблон переменных окружения
-├── .gitignore                      # Git исключения
+├── README.md                       # Complete documentation
+├── docker-compose.yml              # Container orchestration
+├── .env.example                    # Environment variables template
+├── .gitignore                      # Git exclusions
 │
-├── backend/                        # Backend приложение
-│   ├── Dockerfile                  # Docker образ для backend
-│   ├── requirements.txt            # Python зависимости
-│   ├── main.py                     # FastAPI приложение
-│   ├── rag_service.py              # RAG логика (поиск + генерация)
-│   └── loader.py                   # Автозагрузчик документации
+├── backend/                        # Backend application
+│   ├── Dockerfile                  # Docker image for backend
+│   ├── requirements.txt            # Python dependencies
+│   ├── main.py                     # FastAPI application
+│   ├── rag_service.py              # RAG logic (search + generation)
+│   └── loader.py                   # Documentation auto-loader
 │
-├── frontend/                       # Frontend интерфейс
-│   └── index.html                  # Веб-интерфейс чата
+├── frontend/                       # Frontend interface
+│   └── index.html                  # Chat web interface
 │
-├── data/                           # Папка для документации
-│   └── example.md                  # Пример (заменить на реальные данные)
+├── data/                           # Documentation folder
+│   └── example.md                  # Example (replace with real data)
 │
-└── docs/                           # Дополнительная документация
+└── docs/                           # Additional documentation
+    └── PROJECT_REPORT.md           # This file
 ```
 
 ---
 
-## 4. Инструкция по запуску
+## 4. Launch Instructions
 
-### Быстрый старт
+### Quick Start
 
 ```bash
-# 1. Распаковать архив
+# 1. Unzip archive
 unzip rag-support-assistant.zip
 cd rag-support-assistant
 
-# 2. Создать .env файл с API ключами
+# 2. Create .env file with API key
 cat > .env << EOF
-ANTHROPIC_API_KEY=ваш_ключ_anthropic
-OPENAI_API_KEY=ваш_ключ_openai
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
 EOF
 
-# 3. Добавить документацию (20 .md файлов)
-cp /путь/к/документации/*.md data/
+# 3. Add documentation (20 .md files)
+cp /path/to/documentation/*.md data/
 
-# 4. Запустить систему
+# 4. Launch the system
 docker-compose up --build
 
-# 5. Открыть браузер
+# 5. Open browser
 # http://localhost:8000
 ```
 
-### Проверка компонентов
+### Component Verification
 
 ```bash
 # Weaviate
@@ -247,186 +241,188 @@ curl http://localhost:8080/v1/.well-known/ready
 # Backend
 curl http://localhost:8000/health
 
-# Статистика БД
+# Database statistics
 curl http://localhost:8000/stats
 
-# Тест RAG
+# RAG test
 curl -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
-  -d '{"message":"Ваш вопрос"}'
+  -d '{"message":"Your question"}'
 ```
 
 ---
 
-## 5. Демонстрация работы
+## 5. System Operation Demonstration
 
-### Пример работы RAG pipeline
+### RAG Pipeline Example
 
-**Вопрос:** "Как восстановить пароль?"
+**Question:** "How to reset password?"
 
-**Шаг 1: Векторизация запроса**
+**Step 1: Query Vectorization**
 ```python
-query_embedding = openai.embeddings.create(
-    model="text-embedding-3-small",
-    input="Как восстановить пароль?"
+query_embedding = embedding_model.encode(
+    "How to reset password?",
+    convert_to_tensor=False
 )
-# → vector [1536 dimensions]
+# → vector [384 dimensions] - generated locally, no API call
 ```
 
-**Шаг 2: Поиск в Weaviate**
+**Step 2: Weaviate Search**
 ```python
 results = weaviate.query.near_vector(
     near_vector=query_embedding,
     limit=3
 )
-# → 3 релевантных чанка из документации
+# → 3 relevant chunks from documentation
 ```
 
-**Шаг 3: Формирование контекста**
+**Step 3: Context Formation**
 ```
-Документ: Восстановление пароля (password_reset.md)
-Если вы забыли пароль, нажмите "Забыли пароль?" на странице входа...
+Document: Password Reset (password_reset.md)
+If you forgot your password, click "Forgot password?" on the login page...
 
-Документ: Безопасность аккаунта (security.md)
-Для восстановления пароля потребуется доступ к email...
+Document: Account Security (security.md)
+To reset your password, you'll need access to your email...
 ```
 
-**Шаг 4: Генерация ответа**
+**Step 4: Answer Generation**
 ```python
 response = anthropic.messages.create(
     model="claude-sonnet-4-20250514",
     messages=[{
         "role": "user",
-        "content": f"Документация:\n{context}\n\nВопрос: {query}"
+        "content": f"Documentation:\n{context}\n\nQuestion: {query}"
     }]
 )
 ```
 
-**Ответ:**
+**Answer:**
 ```
-Чтобы восстановить пароль:
-1. Перейдите на страницу входа
-2. Нажмите "Забыли пароль?"
-3. Введите email, указанный при регистрации
-4. Проверьте почту и перейдите по ссылке
-5. Введите новый пароль
+To reset your password:
+1. Go to the login page
+2. Click "Forgot password?"
+3. Enter the email you used for registration
+4. Check your email and follow the link
+5. Enter your new password
 
-Источники:
-• Восстановление пароля (password_reset.md)
-• Безопасность аккаунта (security.md)
+Sources:
+• Password Reset (password_reset.md)
+• Account Security (security.md)
 ```
 
 ---
 
-## 6. Качество реализации
+## 6. Implementation Quality
 
-### Преимущества решения
+### Solution Advantages
 
-**1. Полностью автоматизированная система**
-- Автозагрузка данных при старте
-- Не требует ручной настройки
+**1. Fully Automated System**
+- Auto-loading data on startup
+- No manual configuration required
 - One-command deployment
 
-**2. Production-ready архитектура**
-- Модульный дизайн
+**2. Production-Ready Architecture**
+- Modular design
 - Separation of concerns
 - Error handling
 - Healthchecks
 
-**3. Scalable решение**
+**3. Scalable Solution**
 - Docker containerization
-- Легко добавить новые документы
-- Можно горизонтально масштабировать
+- Easy to add new documents
+- Horizontally scalable
 
-**4. Качественный UX**
-- Современный интерфейс
-- Быстрые ответы
-- Указание источников
-- Примеры вопросов
+**4. Quality UX**
+- Modern interface
+- Fast responses
+- Source attribution
+- Example questions
 
-**5. Полное использование векторного поиска**
-- OpenAI embeddings (не простой full-text search)
-- Семантический поиск
-- Высокая точность релевантности
+**5. Full Use of Vector Search**
+- Local embeddings (no external API dependency for embeddings)
+- Semantic search (not simple full-text search)
+- High relevance accuracy
+- Cost-effective (no embedding API costs)
 
-### Технологические решения
+### Technological Decisions
 
-**Выбор Weaviate:**
-- Open-source векторная БД
-- Быстрый поиск
-- Простая интеграция
+**Weaviate Choice:**
+- Open-source vector database
+- Fast search
+- Simple integration
 - Docker support
 
-**Выбор Claude Sonnet 4:**
-- Новейшая модель
-- Высокое качество генерации
-- Поддержка больших контекстов
-- Точное следование инструкциям
+**Claude Sonnet 4 Choice:**
+- Latest model
+- High generation quality
+- Large context support
+- Precise instruction following
 
-**Выбор FastAPI:**
-- Современный фреймворк
-- Автоматическая документация
-- Высокая производительность
+**FastAPI Choice:**
+- Modern framework
+- Automatic documentation
+- High performance
 - Type hints
+
+**Local Embeddings Choice (all-MiniLM-L6-v2):**
+- No API costs for embeddings
+- Fast local generation
+- No external dependencies
+- Privacy-friendly (data stays local)
+- Reliable (no rate limits)
 
 ---
 
-## 7. Результаты и метрики
+## 7. Results and Metrics
 
-### Техническая реализация
-- ✅ Все 9 шагов выполнены
-- ✅ Векторные эмбеддинги (не full-text search)
-- ✅ Полный RAG pipeline
-- ✅ Автоматизация загрузки
+### Technical Implementation
+- ✅ All 9 steps completed
+- ✅ Vector embeddings (not full-text search)
+- ✅ Complete RAG pipeline
+- ✅ Automated loading
 - ✅ Docker containerization
-- ✅ Production-ready код
+- ✅ Production-ready code
 
-### Функциональность
-- ✅ Поиск по семантике (не по ключевым словам)
-- ✅ Точные ответы на основе документации
-- ✅ Указание источников информации
-- ✅ Обработка ошибок
+### Functionality
+- ✅ Semantic search (not keyword-based)
+- ✅ Accurate answers based on documentation
+- ✅ Source attribution
+- ✅ Error handling
 - ✅ Healthchecks
 
-### Качество
-- ✅ Чистый, читаемый код
-- ✅ Модульная архитектура
-- ✅ Подробная документация
-- ✅ Инструкции по запуску
+### Quality
+- ✅ Clean, readable code
+- ✅ Modular architecture
+- ✅ Detailed documentation
+- ✅ Launch instructions
 - ✅ Error handling
 
 ---
 
-## 8. Видео демонстрация
+## 8. Video Demonstration
 
-**Ссылка:** [Будет добавлена]
+**Link:** [To be added]
 
-**План видео (1-3 минуты):**
-1. Показ структуры проекта (10 сек)
-2. Запуск системы через docker-compose (20 сек)
-3. Логи загрузки документации в Weaviate (15 сек)
-4. Проверка API endpoints (15 сек)
-5. Демонстрация веб-интерфейса (30 сек)
-6. Примеры вопросов и ответов (30 сек)
-7. Показ источников информации (10 сек)
+**Video Plan (1-3 minutes):**
+1. Project structure overview (10 sec)
+2. System startup via docker-compose (20 sec)
+3. Documentation loading logs into Weaviate (15 sec)
+4. API endpoints verification (15 sec)
+5. Web interface demonstration (30 sec)
+6. Example questions and answers (30 sec)
+7. Information sources display (10 sec)
 
 ---
 
-## 9. Заключение
+## 9. Conclusion
 
-Проект полностью реализует RAG-based AI систему с использованием современных технологий. Все компоненты интегрированы и работают автономно. Система готова к демонстрации и использованию.
+The project fully implements a RAG-based AI system using modern technologies. All components are integrated and work autonomously. The system is ready for demonstration and use.
 
-**Основные достижения:**
-- ✅ Полный RAG pipeline с векторным поиском
-- ✅ Автоматическая загрузка и индексация
-- ✅ Качественный веб-интерфейс
+**Main Achievements:**
+- ✅ Complete RAG pipeline with vector search
+- ✅ Local embedding generation
+- ✅ Automatic loading and indexing
+- ✅ Quality web interface
 - ✅ Docker containerization
-- ✅ Production-ready решение
-
-**Оценка:** 90-100 баллов (все критерии выполнены + высокое качество реализации)
-
----
-
-**Автор:** [Ваше имя]  
-**Контакт:** [Ваш email]  
-**Дата:** 08.12.2025
+- ✅ Production-ready solution
+- ✅ Cost-effective (only LLM API costs, embeddings are free)
