@@ -3,19 +3,48 @@ RAG Service - main logic for search and answer generation
 """
 import os
 import weaviate
-from anthropic import Anthropic
+from openai import OpenAI, AzureOpenAI
 from sentence_transformers import SentenceTransformer
 
 # Configuration
 WEAVIATE_URL = os.getenv("WEAVIATE_URL", "http://weaviate:8080")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama")  # "ollama" or "openai"
+
+# OpenAI Configuration
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")  # Optional, defaults to api.openai.com
+OPENAI_MODEL = os.getenv("OPENAI_MODEL")
+
+# Ollama Configuration
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
+
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"  # Lightweight and fast local model
 
 class RAGService:
     def __init__(self):
         """Initialize the service"""
         self.weaviate_client = None
-        self.anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
+        self.llm_provider = LLM_PROVIDER.lower()
+
+        # Initialize LLM client based on provider
+        if self.llm_provider == "openai":
+            # Use OpenAI cloud API
+            if not OPENAI_API_KEY:
+                raise ValueError("OPENAI_API_KEY is required when LLM_PROVIDER=openai")
+
+            base_url = OPENAI_BASE_URL if OPENAI_BASE_URL else "https://api.openai.com/v1"
+            self.llm_client = AzureOpenAI(azure_endpoint=base_url, api_key=OPENAI_API_KEY, api_version="2024-02-01",)
+            self.llm_model = OPENAI_MODEL
+            print(f"✓ Using OpenAI API at {base_url} with model: {self.llm_model}")
+        else:
+            # Use local Ollama
+            self.llm_client = OpenAI(
+                base_url=f"{OLLAMA_URL}/v1",
+                api_key="ollama"  # Ollama doesn't require a real API key
+            )
+            self.llm_model = OLLAMA_MODEL
+            print(f"✓ Using local Ollama at {OLLAMA_URL} with model: {self.llm_model}")
 
         # Load local embedding model
         print(f"Loading local embedding model: {EMBEDDING_MODEL}")
@@ -103,7 +132,7 @@ class RAGService:
             return []
 
     def generate_answer(self, query: str, context_docs: list) -> dict:
-        """Generate answer using Claude"""
+        """Generate answer using configured LLM (Ollama or OpenAI) via OpenAI SDK"""
         if not context_docs:
             return {
                 'answer': 'Sorry, I could not find relevant information in the documentation.',
@@ -116,34 +145,36 @@ class RAGService:
             for doc in context_docs
         ])
 
-        # Prompt for Claude
-        prompt = f"""You are a technical support AI assistant. Your task is to answer user questions based on the provided website documentation.
-
-Documentation:
-{context}
-
-User question: {query}
+        # System and user messages for chat completion
+        system_message = """You are a technical support AI assistant. Your task is to answer user questions based on the provided website documentation.
 
 Instructions:
 1. Provide an accurate and helpful answer based ONLY on the provided documentation
 2. If there is insufficient information, say so honestly
 3. Answer in English
 4. Be concise and specific
-5. Use a friendly tone
+5. Use a friendly tone"""
 
-Answer:"""
+        user_message = f"""Documentation:
+{context}
+
+User question: {query}
+
+Please provide your answer:"""
 
         try:
-            # Request to Claude API
-            message = self.anthropic_client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=1000,
+            # Use OpenAI SDK (works for both OpenAI and Ollama)
+            completion = self.llm_client.chat.completions.create(
+                model=self.llm_model,
                 messages=[
-                    {"role": "user", "content": prompt}
-                ]
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": user_message}
+                ],
+                temperature=0.7,
+                max_tokens=1000
             )
 
-            answer = message.content[0].text
+            answer = completion.choices[0].message.content
 
             # Format sources
             sources = [
@@ -170,6 +201,8 @@ Answer:"""
 
         except Exception as e:
             print(f"✗ Error generating answer: {e}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
             return {
                 'answer': f'An error occurred while generating the answer: {str(e)}',
                 'sources': []

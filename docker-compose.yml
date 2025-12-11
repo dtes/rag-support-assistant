@@ -21,20 +21,47 @@ services:
     networks:
       - rag-network
 
+#  ollama:
+#    image: ollama/ollama:latest
+#    ports:
+#      - "11434:11434"
+#    volumes:
+#      - ollama_data:/root/.ollama
+#    networks:
+#      - rag-network
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 5
+#    # Auto-pull model on startup
+#    entrypoint: ["/bin/sh", "-c"]
+#    command: >
+#      "ollama serve & sleep 5 && ollama pull llama3.2:3b && wait"
+
   backend:
     build: ./backend
     ports:
       - "8000:8000"
     environment:
       - WEAVIATE_URL=http://weaviate:8080
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL}
+      - OPENAI_MODEL=${OPENAI_MODEL}
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
+      - SENTENCE_TRANSFORMERS_HOME=/app/models
+      - HF_HOME=/app/models
     volumes:
       - ./data:/app/data:ro
       - ./frontend:/app/frontend:ro
+      - embedding_models:/app/models
     depends_on:
       weaviate:
         condition: service_healthy
+#      ollama:
+#        condition: service_healthy
     networks:
       - rag-network
     command: >
@@ -46,3 +73,5 @@ networks:
 
 volumes:
   weaviate_data:
+  ollama_data:
+  embedding_models:

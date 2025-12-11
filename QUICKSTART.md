@@ -4,15 +4,14 @@
 
 ### 1. Prerequisites
 - Docker and Docker Compose installed
-- API keys: Anthropic Claude and OpenAI
+- No API keys needed - fully local!
 
-### 2. Installation
+### 2. Installation (Optional)
 
 ```bash
-# Create .env file
+# Optional: Create .env file to use different model
 cat > .env << EOF
-ANTHROPIC_API_KEY=your_anthropic_key
-OPENAI_API_KEY=your_openai_key
+OLLAMA_MODEL=llama3.2:3b
 EOF
 ```
 
@@ -78,8 +77,8 @@ docker-compose down -v
 **Issue**: Ports are busy
 **Solution**: Change ports in `docker-compose.yml` or stop other services
 
-**Issue**: API key error
-**Solution**: Check `.env` file and key validity
+**Issue**: Ollama model downloading
+**Solution**: First launch downloads ~2GB model. Wait patiently - this is one-time only.
 
 **Issue**: Documentation not loading
 **Solution**:
@@ -112,7 +111,7 @@ backend_1    | Documents found: 3
 ```
 
 ### Step 3: Response Generation
-Claude API generates response based on found documents
+Local Ollama LLM generates response based on found documents
 
 ### Step 4: Result
 User receives response with source attribution
@@ -120,16 +119,16 @@ User receives response with source attribution
 ## RAG Execution Architecture
 
 ```
-User Query → Embedding (OpenAI) → Vector Search (Weaviate) → Context + Query → LLM (Claude) → Response
+User Query → Embedding (Local sentence-transformers) → Vector Search (Weaviate) → Context + Query → LLM (Local Ollama) → Response
 ```
 
-All 9 assignment steps completed:
+All components are now fully local:
 1. ✓ Idea and description in README.md
 2. ✓ Data: .md files in data/ folder
 3. ✓ Database: Weaviate in Docker
-4. ✓ Embeddings: OpenAI text-embedding-3-small
+4. ✓ Embeddings: Local sentence-transformers (all-MiniLM-L6-v2)
 5. ✓ Auto-loading: loader.py on startup
-6. ✓ LLM client: Anthropic Claude API
+6. ✓ LLM client: Local Ollama (Llama 3.2 3B)
 7. ✓ UI: Web chat interface
 8. ✓ RAG system: complete pipeline in rag_service.py
 9. ✓ Video: [link to be added]

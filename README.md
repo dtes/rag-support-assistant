@@ -14,14 +14,15 @@ The system automatically indexes website documentation in a vector database and 
 - **Frontend**: Simple web interface with chat (HTML/CSS/JavaScript)
 - **Backend**: FastAPI server (Python)
 - **Vector Database**: Weaviate
-- **LLM Provider**: Anthropic Claude API
+- **LLM Provider**: Local Ollama (Llama 3.2 3B)
 - **Embeddings**: Local sentence-transformers (all-MiniLM-L6-v2)
 
 #### Components
 1. **Weaviate** - vector database for storing documentation chunks
-2. **Backend API** - request processing, embedding creation, RAG pipeline
-3. **Auto-loader** - automatic documentation loading and indexing on startup
-4. **Web UI** - chat interface for users
+2. **Ollama** - local LLM server running Llama 3.2 3B model
+3. **Backend API** - request processing, embedding creation, RAG pipeline
+4. **Auto-loader** - automatic documentation loading and indexing on startup
+5. **Web UI** - chat interface for users
 
 ### Dataset Concept
 - **Data Type**: Markdown files with site documentation
@@ -32,19 +33,18 @@ The system automatically indexes website documentation in a vector database and 
 ### System Requirements
 - Docker and Docker Compose
 - 8GB RAM (minimum), 16GB RAM (recommended)
-- API key: Anthropic Claude only (embeddings are generated locally)
+- No API keys required - fully local solution!
 
 ### Limitations
 - Works only with text documentation in Markdown format
-- Requires internet connection for API access
+- Works completely offline (no internet required)
 - Limited multilingual support (optimized for Russian/English)
 
 ## Quick Start
 
 ### Prerequisites
 1. Install Docker and Docker Compose
-2. Obtain API key:
-   - Anthropic Claude API: https://console.anthropic.com/
+2. No API keys needed - everything runs locally!
 
 ### Installation and Launch
 
@@ -59,10 +59,10 @@ Place your .md files in the `data/` folder:
 cp your_docs/*.md data/
 ```
 
-3. **Configure environment variables**
-Create a `.env` file in the project root:
+3. **Configure environment variables (optional)**
+Create a `.env` file if you want to use a different model:
 ```bash
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
+OLLAMA_MODEL=llama3.2:3b
 ```
 
 4. **Launch the system**
@@ -72,6 +72,7 @@ docker-compose up --build
 
 On first launch:
 - Weaviate will start and create the schema
+- Ollama will download Llama 3.2 3B model (~2GB, may take a few minutes)
 - Local embedding model (all-MiniLM-L6-v2) will be downloaded automatically
 - Backend will automatically load all .md files from the `data/` folder
 - Documentation will be split into chunks and indexed using local embeddings
@@ -134,7 +135,7 @@ rag-support-assistant/
    - Creating embedding for the question using local model
    - Searching for top-3 relevant chunks in Weaviate
    - Forming context
-   - Generating response via Claude API
+   - Generating response via local Ollama LLM
    - Returning response with sources
 
 ### API Endpoints
@@ -146,10 +147,10 @@ rag-support-assistant/
 ## Troubleshooting
 
 ### Issue: Containers not starting
-**Solution**: Ensure Docker is running and ports 8000, 8080 are free
+**Solution**: Ensure Docker is running and ports 8000, 8080, 11434 are free
 
-### Issue: API key error
-**Solution**: Check `.env` file and key validity
+### Issue: Ollama model downloading slowly
+**Solution**: First launch requires downloading ~2GB model. This is one-time only.
 
 ### Issue: Documentation not loading
 **Solution**:
@@ -157,7 +158,10 @@ rag-support-assistant/
 - Check logs: `docker-compose logs backend`
 
 ### Issue: Slow responses
-**Solution**: First request may be slow (cold start). Subsequent ones are faster.
+**Solution**: First request may be slow (model loading). Subsequent ones are faster.
+
+### Issue: Out of memory
+**Solution**: Increase Docker memory limit to at least 8GB in Docker settings.
 
 ## Video Demonstration
 [Video link to be added after recording]
