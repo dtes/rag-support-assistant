@@ -3,11 +3,11 @@ Loader - автоматическая загрузка документации 
 """
 import os
 import time
-import weaviate
 from weaviate.classes.config import Configure, Property, DataType
 from sentence_transformers import SentenceTransformer
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pathlib import Path
+from db_client import connect_weaviate
 
 # Конфигурация
 WEAVIATE_URL = os.getenv("WEAVIATE_URL", "http://weaviate:8080")
@@ -19,14 +19,8 @@ def wait_for_weaviate(max_retries=30):
     print("Ожидание запуска Weaviate...")
     for i in range(max_retries):
         try:
-            client = weaviate.connect_to_custom(
-                http_host="weaviate",
-                http_port=8080,
-                http_secure=False,
-                grpc_host="weaviate",
-                grpc_port=50051,
-                grpc_secure=False,
-            )
+            client = connect_weaviate()
+
             if client.is_ready():
                 print("✓ Weaviate готов к работе")
                 client.close()
@@ -81,14 +75,7 @@ def load_documents():
         return False
 
     # Подключение к Weaviate
-    client = weaviate.connect_to_custom(
-        http_host="weaviate",
-        http_port=8080,
-        http_secure=False,
-        grpc_host="weaviate",
-        grpc_port=50051,
-        grpc_secure=False,
-    )
+    client = connect_weaviate()
 
     # Создание схемы
     if not create_schema(client):

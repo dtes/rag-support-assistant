@@ -1,28 +1,76 @@
-# RAG-based AI Support Assistant
+# 🤖 RAG Finance Assistant
+
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
+[![LangChain](https://img.shields.io/badge/LangChain-0.3+-green.svg)](https://github.com/langchain-ai/langchain)
+[![LangGraph](https://img.shields.io/badge/LangGraph-0.2+-orange.svg)](https://github.com/langchain-ai/langgraph)
+[![Docker](https://img.shields.io/badge/Docker-Compose-blue.svg)](https://www.docker.com/)
 
 ## Project Description
 
 ### Core Idea
-AI assistant for website user support, using RAG (Retrieval-Augmented Generation) to provide accurate answers based on site documentation.
+Продвинутая RAG-система для финансового SaaS-сервиса с поддержкой:
+- 🔍 Multi-sourcing (документация + оперативные данные через API)
+- 💬 Chat Memory (помнит всю беседу)
+- 📊 Observability (LangFuse для трейсинга и метрик)
+- 🤖 LangGraph для интеллектуального роутинга
 
-### Concept
-The system automatically indexes website documentation in a vector database and provides users with an intelligent chat interface for information retrieval. When receiving a question, the system finds relevant documentation fragments and generates an accurate answer using an LLM.
+### ✨ Key Features
 
-### Technical Details
+#### 🎯 Multi-sourcing (Dual Data Sources)
+Система автоматически определяет источник данных:
+- **Статическая документация** → RAG (Weaviate)
+- **Оперативные данные** → Finance API (транзакции, балансы, отчеты)
+
+```
+"Как создать отчет?" → Documentation (RAG Path)
+"Какой у меня баланс?" → API Call (Tools Path)
+```
+
+#### 💭 Chat Memory
+Полноценная память диалогов:
+- Backend: Redis с TTL 24 часа
+- Frontend: localStorage с автосохранением session_id
+- Контекстные ответы на основе истории беседы
+
+```
+Вы: Покажи мои расходы за месяц
+Бот: За месяц ваши расходы составили 450,000 тенге...
+
+Вы: А сколько из них на аренду?
+Бот: На аренду было потрачено 150,000 тенге ✅ (помнит контекст!)
+```
+
+#### 📈 LangFuse Observability
+- Полный трейсинг всех LangGraph узлов
+- Метрики: latency, tokens, cost
+- Dashboard: http://localhost:3000
+
+#### 🛠️ Mock Finance API
+6 готовых endpoints:
+- `get_transactions` - транзакции за период
+- `get_cash_flow_report` - отчет ДДС
+- `get_account_balance` - балансы счетов
+- `get_profit_loss_report` - отчет ОПиУ
+- `get_expense_categories` - справочник категорий
+- `get_counterparties` - справочник контрагентов
+
+### Technical Stack
 
 #### System Architecture
-- **Frontend**: Simple web interface with chat (HTML/CSS/JavaScript)
-- **Backend**: FastAPI server (Python)
-- **Vector Database**: Weaviate
-- **LLM Provider**: Local Ollama (Llama 3.2 3B)
-- **Embeddings**: Local sentence-transformers (all-MiniLM-L6-v2)
+- **LangGraph** - Multi-step reasoning state machine
+- **LangChain** - LLM orchestration
+- **LangFuse** - Observability platform
+- **Redis** - Chat memory & caching
+- **Weaviate** - Vector database
+- **FastAPI** - Backend framework
+- **Azure OpenAI** - LLM provider (или Ollama для локального)
 
 #### Components
-1. **Weaviate** - vector database for storing documentation chunks
-2. **Ollama** - local LLM server running Llama 3.2 3B model
-3. **Backend API** - request processing, embedding creation, RAG pipeline
-4. **Auto-loader** - automatic documentation loading and indexing on startup
-5. **Web UI** - chat interface for users
+1. **LangGraph Pipeline** - Router → RAG/Tools → Generator
+2. **Memory Service** - Redis для хранения истории
+3. **Mock Finance API** - Эмуляция финансовых данных
+4. **LangFuse** - Self-hosted observability
+5. **Frontend** - Chat UI с session management
 
 ### Dataset Concept
 - **Data Type**: Markdown files with site documentation
@@ -33,52 +81,48 @@ The system automatically indexes website documentation in a vector database and 
 ### System Requirements
 - Docker and Docker Compose
 - 8GB RAM (minimum), 16GB RAM (recommended)
-- No API keys required - fully local solution!
+- Azure OpenAI API key (или Ollama для локального запуска)
 
-### Limitations
-- Works only with text documentation in Markdown format
-- Works completely offline (no internet required)
-- Limited multilingual support (optimized for Russian/English)
+### New in Version 1.0
+- ✅ LangGraph multi-step reasoning
+- ✅ Chat memory (Redis + localStorage)
+- ✅ LangFuse observability
+- ✅ Mock Finance API (6 endpoints)
+- ✅ Intelligent routing (documentation vs operational)
+- ✅ Session management на frontend
 
 ## Quick Start
 
 ### Prerequisites
-1. Install Docker and Docker Compose
-2. No API keys needed - everything runs locally!
+1. Docker and Docker Compose
+2. Azure OpenAI API key (или Ollama)
 
 ### Installation and Launch
 
-1. **Clone/unzip the project**
 ```bash
-cd rag-support-assistant
-```
+# 1. Настроить окружение
+cp .env.example .env
+nano .env  # Добавить AZURE_OPENAI_API_KEY
 
-2. **Add documentation**
-Place your .md files in the `data/` folder:
-```bash
-cp your_docs/*.md data/
-```
-
-3. **Configure environment variables (optional)**
-Create a `.env` file if you want to use a different model:
-```bash
-OLLAMA_MODEL=llama3.2:3b
-```
-
-4. **Launch the system**
-```bash
+# 2. Запустить систему
 docker-compose up --build
+
+# 3. Открыть браузер
+http://localhost:8000
 ```
 
-On first launch:
-- Weaviate will start and create the schema
-- Ollama will download Llama 3.2 3B model (~2GB, may take a few minutes)
-- Local embedding model (all-MiniLM-L6-v2) will be downloaded automatically
-- Backend will automatically load all .md files from the `data/` folder
-- Documentation will be split into chunks and indexed using local embeddings
+**Доступные сервисы:**
+- 🌐 Frontend UI: http://localhost:8000
+- 📊 LangFuse Dashboard: http://localhost:3000
+- 🔍 API Docs: http://localhost:8000/docs
+- 📡 Weaviate: http://localhost:8080
 
-5. **Open UI**
-Open browser: http://localhost:8000
+**On first launch:**
+- Weaviate создаст схему для векторов
+- Redis запустится для chat memory
+- LangFuse + PostgreSQL для observability
+- Backend загрузит все .md файлы из `data/`
+- Документация будет проиндексирована
 
 ### Stopping the system
 ```bash
@@ -91,18 +135,46 @@ For complete cleanup (including vector DB):
 docker-compose down -v
 ```
 
-## Usage
+## Usage & Testing
 
-1. Open the web interface in your browser
-2. Enter a question about site documentation
-3. The system will find relevant fragments and generate an answer
-4. The answer will be based on actual documentation with source attribution
+### 🧪 Тест Chat Memory
 
-## Example Questions
-- "How to register on the site?"
-- "What payment methods are supported?"
-- "How to reset password?"
-- "What to do if an error occurs during checkout?"
+```bash
+# Откройте http://localhost:8000
+
+# 1. Первое сообщение
+"Привет! Меня зовут Dias"
+
+# 2. Проверьте индикатор
+Должна появиться надпись: "● Chat memory active" ✅
+
+# 3. Второе сообщение
+"Как меня зовут?"
+
+# 4. Ожидаемый результат
+"Вас зовут Dias" ✅ (помнит контекст!)
+```
+
+### Example Questions
+
+**Documentation (RAG Path):**
+- "Как создать отчет в системе?"
+- "Что такое ДДС?"
+- "Как настроить категории расходов?"
+
+**Operational Data (Tools Path):**
+- "Какой у меня баланс?"
+- "Покажи мои расходы за месяц"
+- "Сколько на резервном счете?"
+
+**Contextual Dialogue:**
+```
+Вы: Покажи мои расходы за месяц
+Бот: За месяц ваши расходы составили 450,000 тенге...
+
+Вы: А сколько из них на маркетинг?
+Бот: На маркетинг было потрачено 80,000 тенге ✅
+```
 
 ## Project Structure
 ```

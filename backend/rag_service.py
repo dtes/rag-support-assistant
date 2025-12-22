@@ -3,71 +3,32 @@ RAG Service - main logic for search and answer generation
 """
 import os
 import weaviate
-from openai import OpenAI, AzureOpenAI
 from sentence_transformers import SentenceTransformer
+from llm_client import create_llm_client
+from db_client import connect_weaviate
 
 # Configuration
-WEAVIATE_URL = os.getenv("WEAVIATE_URL", "http://weaviate:8080")
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama")  # "ollama" or "openai"
-
-# OpenAI Configuration
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")  # Optional, defaults to api.openai.com
-OPENAI_MODEL = os.getenv("OPENAI_MODEL")
-
-# Ollama Configuration
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
-
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"  # Lightweight and fast local model
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
 
 class RAGService:
     def __init__(self):
         """Initialize the service"""
-        self.weaviate_client = None
-        self.llm_provider = LLM_PROVIDER.lower()
-
-        # Initialize LLM client based on provider
-        if self.llm_provider == "openai":
-            # Use OpenAI cloud API
-            if not OPENAI_API_KEY:
-                raise ValueError("OPENAI_API_KEY is required when LLM_PROVIDER=openai")
-
-            base_url = OPENAI_BASE_URL if OPENAI_BASE_URL else "https://api.openai.com/v1"
-            self.llm_client = AzureOpenAI(azure_endpoint=base_url, api_key=OPENAI_API_KEY, api_version="2024-02-01",)
-            self.llm_model = OPENAI_MODEL
-            print(f"✓ Using OpenAI API at {base_url} with model: {self.llm_model}")
-        else:
-            # Use local Ollama
-            self.llm_client = OpenAI(
-                base_url=f"{OLLAMA_URL}/v1",
-                api_key="ollama"  # Ollama doesn't require a real API key
-            )
-            self.llm_model = OLLAMA_MODEL
-            print(f"✓ Using local Ollama at {OLLAMA_URL} with model: {self.llm_model}")
+        self.llm_client = create_llm_client()
+        self.weaviate_client = connect_weaviate()
 
         # Load local embedding model
-        print(f"Loading local embedding model: {EMBEDDING_MODEL}")
-        self.embedding_model = SentenceTransformer(EMBEDDING_MODEL)
-        print("✓ Local embedding model loaded")
-
-        self.connect_weaviate()
-
-    def connect_weaviate(self):
-        """Connect to Weaviate"""
-        try:
-            self.weaviate_client = weaviate.connect_to_custom(
-                http_host="weaviate",
-                http_port=8080,
-                http_secure=False,
-                grpc_host="weaviate",
-                grpc_port=50051,
-                grpc_secure=False,
+        if not EMBEDDING_MODEL:
+            raise ValueError(
+                "EMBEDDING_MODEL environment variable is not set. "
+                "Please set it in your .env file (e.g., EMBEDDING_MODEL=all-MiniLM-L6-v2)"
             )
-            print("✓ Connected to Weaviate")
+
+        print(f"Loading local embedding model: {EMBEDDING_MODEL}")
+        try:
+            self.embedding_model = SentenceTransformer(EMBEDDING_MODEL)
+            print("✓ Local embedding model loaded")
         except Exception as e:
-            print(f"✗ Error connecting to Weaviate: {e}")
-            self.weaviate_client = None
+            raise RuntimeError(f"Failed to load embedding model '{EMBEDDING_MODEL}': {e}")
 
     def get_embedding(self, text: str) -> list[float]:
         """Create embedding for text using local model"""
@@ -132,7 +93,7 @@ class RAGService:
             return []
 
     def generate_answer(self, query: str, context_docs: list) -> dict:
-        """Generate answer using configured LLM (Ollama or OpenAI) via OpenAI SDK"""
+        """Generate answer using configured LLM"""
         if not context_docs:
             return {
                 'answer': 'Sorry, I could not find relevant information in the documentation.',
@@ -163,18 +124,12 @@ User question: {query}
 Please provide your answer:"""
 
         try:
-            # Use OpenAI SDK (works for both OpenAI and Ollama)
-            completion = self.llm_client.chat.completions.create(
-                model=self.llm_model,
-                messages=[
-                    {"role": "system", "content": system_message},
-                    {"role": "user", "content": user_message}
-                ],
-                temperature=0.7,
-                max_tokens=1000
-            )
+            completion = self.llm_client.invoke([
+                ("system", system_message),
+                ("human", user_message)
+            ])
 
-            answer = completion.choices[0].message.content
+            answer = completion.content
 
             # Format sources
             sources = [

@@ -52,6 +52,41 @@
             opacity: 0.9;
         }
 
+        .new-chat-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .new-chat-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .session-indicator {
+            position: absolute;
+            bottom: 5px;
+            right: 20px;
+            font-size: 11px;
+            opacity: 0.7;
+            color: white;
+        }
+
+        .session-indicator.active::before {
+            content: '●';
+            color: #4ade80;
+            margin-right: 5px;
+        }
+
         .chat-messages {
             flex: 1;
             overflow-y: auto;
@@ -322,8 +357,12 @@
 <body>
     <div class="chat-container">
         <div class="chat-header">
-            <h1>🤖 AI Support Assistant</h1>
-            <p>Ask a question about site documentation</p>
+            <h1>🤖 AI Finance Assistant</h1>
+            <p>Ask questions about documentation or your financial data</p>
+            <button class="new-chat-button" onclick="startNewChat()" title="Start new conversation">
+                🔄 New Chat
+            </button>
+            <div class="session-indicator" id="sessionIndicator"></div>
         </div>
 
         <div class="chat-messages" id="chatMessages">
@@ -332,9 +371,9 @@
                 <p>I'll help you find information in the site documentation.</p>
                 <div class="example-questions">
                     <p>Example questions:</p>
-                    <span class="example-question" onclick="askQuestion(this.textContent)">How to register?</span>
-                    <span class="example-question" onclick="askQuestion(this.textContent)">What payment methods are available?</span>
-                    <span class="example-question" onclick="askQuestion(this.textContent)">How to reset password?</span>
+                    <span class="example-question" onclick="askQuestion(this.textContent)">What's my account balance?</span>
+                    <span class="example-question" onclick="askQuestion(this.textContent)">Show my expenses for this month</span>
+                    <span class="example-question" onclick="askQuestion(this.textContent)">How do I create a report?</span>
                 </div>
             </div>
         </div>
@@ -358,8 +397,32 @@
         const userInput = document.getElementById('userInput');
         const sendButton = document.getElementById('sendButton');
 
-        // Remove welcome message on first message
+        // Session management
+        let sessionId = localStorage.getItem('chat_session_id');
         let firstMessage = true;
+
+        // Update session indicator
+        function updateSessionIndicator() {
+            const indicator = document.getElementById('sessionIndicator');
+            if (sessionId) {
+                indicator.className = 'session-indicator active';
+                indicator.textContent = 'Chat memory active';
+                indicator.title = `Session: ${sessionId}`;
+            } else {
+                indicator.className = 'session-indicator';
+                indicator.textContent = '';
+            }
+        }
+
+        // Log session info
+        if (sessionId) {
+            console.log('Resuming session:', sessionId);
+        } else {
+            console.log('Starting new session');
+        }
+
+        // Initialize session indicator
+        updateSessionIndicator();
 
         function handleKeyPress(event) {
             if (event.key === 'Enter') {
@@ -370,6 +433,47 @@
         function askQuestion(question) {
             userInput.value = question;
             sendMessage();
+        }
+
+        async function startNewChat() {
+            if (!confirm('Start a new conversation? This will clear the current chat history.')) {
+                return;
+            }
+
+            // Clear session from backend if exists
+            if (sessionId) {
+                try {
+                    await fetch(`/chat/history/${sessionId}`, {
+                        method: 'DELETE'
+                    });
+                    console.log('Session cleared:', sessionId);
+                } catch (error) {
+                    console.error('Error clearing session:', error);
+                }
+            }
+
+            // Clear local storage
+            localStorage.removeItem('chat_session_id');
+            sessionId = null;
+            updateSessionIndicator();
+
+            // Clear UI
+            chatMessages.innerHTML = `
+                <div class="welcome-message">
+                    <h2>Welcome!</h2>
+                    <p>I'll help you with your financial data and documentation.</p>
+                    <div class="example-questions">
+                        <p>Example questions:</p>
+                        <span class="example-question" onclick="askQuestion(this.textContent)">What's my account balance?</span>
+                        <span class="example-question" onclick="askQuestion(this.textContent)">Show my expenses for this month</span>
+                        <span class="example-question" onclick="askQuestion(this.textContent)">How do I create a report?</span>
+                    </div>
+                </div>
+            `;
+            firstMessage = true;
+
+            console.log('New chat started');
+            userInput.focus();
         }
 
         async function sendMessage() {
@@ -402,13 +506,23 @@
             const typingIndicator = addTypingIndicator();
 
             try {
+                // Prepare request body with session_id
+                const requestBody = {
+                    message: message
+                };
+
+                // Include session_id if exists
+                if (sessionId) {
+                    requestBody.session_id = sessionId;
+                }
+
                 // Send request to server
                 const response = await fetch('/chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ message: message })
+                    body: JSON.stringify(requestBody)
                 });
 
                 if (!response.ok) {
@@ -416,6 +530,14 @@
                 }
 
                 const data = await response.json();
+
+                // Save session_id from response
+                if (data.session_id) {
+                    sessionId = data.session_id;
+                    localStorage.setItem('chat_session_id', sessionId);
+                    updateSessionIndicator();
+                    console.log('Session saved:', sessionId);
+                }
 
                 // Remove typing indicator
                 typingIndicator.remove();
