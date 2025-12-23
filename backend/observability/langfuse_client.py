@@ -23,19 +23,11 @@ class LangFuseClient:
         if cls._instance is None:
             try:
                 from langfuse import Langfuse
-                import os
-
-                # Disable OpenTelemetry export to avoid 404 errors
-                # LangFuse 3.x uses OpenTelemetry internally but we don't need OTLP export
-                os.environ.setdefault("OTEL_SDK_DISABLED", "false")
 
                 cls._instance = Langfuse(
                     public_key=settings.langfuse.public_key,
                     secret_key=settings.langfuse.secret_key,
                     host=settings.langfuse.host,
-                    debug=False,
-                    # Disable OpenTelemetry tracer provider to prevent 404 errors
-                    tracer_provider=None,
                 )
                 print(f"✓ LangFuse client initialized (host: {settings.langfuse.host})")
             except ImportError as ie:

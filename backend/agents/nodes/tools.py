@@ -16,7 +16,6 @@ except ImportError:
         return decorator if not args else args[0]
 
 
-#@observe(name="call_tools", as_type="tool")
 def call_tools(state: AgentState) -> AgentState:
     """
     Tools node: Use LLM with tool calling to get operational data

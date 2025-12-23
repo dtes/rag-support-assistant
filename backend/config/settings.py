@@ -37,6 +37,8 @@ class RedisSettings(BaseModel):
     ttl_transactions: int = 60  # 1 minute for transactions
     ttl_reports: int = 300  # 5 minutes for reports
     ttl_dictionaries: int = 3600  # 1 hour for reference data
+    ttl_checkpoints: int = 3600  # 1 hour for LangGraph checkpoints
+    checkpoint_enabled: bool = os.getenv("CHECKPOINT_ENABLED", "true").lower() == "true"
 
 
 class LangFuseSettings(BaseModel):
@@ -61,6 +63,16 @@ class RAGSettings(BaseModel):
     guardrails_enabled: bool = True
 
 
+class CacheSettings(BaseModel):
+    """Node-level caching configuration"""
+    enabled: bool = os.getenv("CACHE_ENABLED", "true").lower() == "true"
+    # TTL settings for different node types (in seconds)
+    ttl_router: int = 3600    # 1 hour - routing logic rarely changes
+    ttl_rag: int = 1800       # 30 minutes - documents don't update often
+    ttl_tools: int = 300      # 5 minutes - operational data changes frequently
+    ttl_generator: int = 900  # 15 minutes - generated answers
+
+
 class AppSettings(BaseModel):
     """Main application settings"""
     # Demo user for testing (hardcoded)
@@ -74,6 +86,7 @@ class AppSettings(BaseModel):
     redis: RedisSettings = RedisSettings()
     langfuse: LangFuseSettings = LangFuseSettings()
     rag: RAGSettings = RAGSettings()
+    cache: CacheSettings = CacheSettings()
 
 
 # Global settings instance

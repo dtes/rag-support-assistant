@@ -2,6 +2,8 @@
 LangGraph state machine for RAG system
 """
 from langgraph.graph import StateGraph, END
+from langgraph.types import CachePolicy
+from langgraph.cache.memory import InMemoryCache
 from agents.state import AgentState
 from agents.nodes.router import route_query, route_decision
 from agents.nodes.rag import rag_retrieve
@@ -9,7 +11,11 @@ from agents.nodes.tools import call_tools
 from agents.nodes.generator import generate_answer
 from observability.langfuse_client import LangFuseClient
 from config.settings import settings
+from services.redis_checkpointer import get_redis_checkpointer
+
 import time
+import hashlib
+import json
 
 # Import observe decorator if LangFuse is available
 try:
@@ -22,6 +28,73 @@ except ImportError:
         def decorator(func):
             return func
         return decorator if not args else args[0]
+
+
+def clean_state_for_caching(state: dict) -> dict:
+    """
+    Clean state by removing unpicklable objects before caching
+
+    Removes: langfuse_trace (RLock), converts deque to list
+
+    Args:
+        state: Original state dictionary
+
+    Returns:
+        Cleaned state safe for pickling
+    """
+    cleaned = dict(state)
+
+    # Remove unpicklable langfuse trace
+    if "langfuse_trace" in cleaned:
+        cleaned["langfuse_trace"] = None
+
+    # Convert deque to list (MessagesState uses deque which is not msgpack serializable)
+    if "messages" in cleaned:
+        from collections import deque
+        if isinstance(cleaned["messages"], deque):
+            cleaned["messages"] = list(cleaned["messages"])
+
+    return cleaned
+
+
+def cache_key_for_state(state: dict) -> str:
+    """
+    Generate cache key from INPUT state only (before node execution)
+
+    IMPORTANT: Cache key должен зависеть ТОЛЬКО от входных данных,
+    а не от результатов выполнения нод. Иначе кэш никогда не сработает,
+    так как при первом запуске результатов еще нет.
+
+    Args:
+        state: Agent state dictionary
+
+    Returns:
+        Hash string representing the input query
+    """
+    # Cache based on user query only
+    # This ensures same question = same cache key
+    user_query = state.get("user_query", "")
+
+    # Generate hash from query
+    return hashlib.sha256(user_query.encode()).hexdigest()
+
+
+def make_cacheable_node(node_func):
+    """
+    Wrapper to clean state after node execution for caching
+
+    Args:
+        node_func: Original node function
+
+    Returns:
+        Wrapped function that cleans state
+    """
+    def wrapped(state):
+        # Execute original node
+        result = node_func(state)
+        # Clean result for caching
+        return clean_state_for_caching(result)
+    return wrapped
 
 
 def create_rag_graph() -> StateGraph:
@@ -46,11 +119,49 @@ def create_rag_graph() -> StateGraph:
     # Create graph
     workflow = StateGraph(AgentState)
 
-    # Add nodes
-    workflow.add_node("router", route_query)
-    workflow.add_node("rag", rag_retrieve)
-    workflow.add_node("tools", call_tools)
-    workflow.add_node("generator", generate_answer)
+    # Add nodes with cache policies for performance optimization
+    # Wrap nodes to clean unpicklable objects before caching
+    # Use custom key_func to generate cache keys from user query only
+
+    # Router: cache routing decisions (TTL: 1 hour - routing logic stable)
+    workflow.add_node(
+        "router",
+        make_cacheable_node(route_query) if settings.cache.enabled else route_query,
+        cache_policy=CachePolicy(
+            ttl=settings.cache.ttl_router,
+            key_func=cache_key_for_state
+        ) if settings.cache.enabled else None
+    )
+
+    # RAG: cache document search results (TTL: 30 min - docs rarely change)
+    workflow.add_node(
+        "rag",
+        make_cacheable_node(rag_retrieve) if settings.cache.enabled else rag_retrieve,
+        cache_policy=CachePolicy(
+            ttl=settings.cache.ttl_rag,
+            key_func=cache_key_for_state
+        ) if settings.cache.enabled else None
+    )
+
+    # Tools: cache API calls (TTL: 5 min - operational data changes frequently)
+    workflow.add_node(
+        "tools",
+        make_cacheable_node(call_tools) if settings.cache.enabled else call_tools,
+        cache_policy=CachePolicy(
+            ttl=settings.cache.ttl_tools,
+            key_func=cache_key_for_state
+        ) if settings.cache.enabled else None
+    )
+
+    # Generator: cache LLM responses (TTL: 15 min)
+    workflow.add_node(
+        "generator",
+        make_cacheable_node(generate_answer) if settings.cache.enabled else generate_answer,
+        cache_policy=CachePolicy(
+            ttl=settings.cache.ttl_generator,
+            key_func=cache_key_for_state
+        ) if settings.cache.enabled else None
+    )
 
     # Set entry point
     workflow.set_entry_point("router")
@@ -73,8 +184,32 @@ def create_rag_graph() -> StateGraph:
     # Generator flows to END
     workflow.add_edge("generator", END)
 
-    # Compile graph
-    graph = workflow.compile()
+    # Get Redis checkpointer for state persistence (memory)
+    checkpointer = None
+    if settings.redis.checkpoint_enabled:
+        checkpointer = get_redis_checkpointer()
+        if checkpointer:
+            print("✓ Checkpointing enabled for state persistence")
+        else:
+            print("⚠ Checkpointing disabled (Redis unavailable)")
+
+    # Initialize cache for node-level caching (performance)
+    cache = None
+    if settings.cache.enabled:
+        cache = InMemoryCache()
+        print("✓ Node caching enabled (InMemoryCache)")
+        print(f"  - Router TTL: {settings.cache.ttl_router}s")
+        print(f"  - RAG TTL: {settings.cache.ttl_rag}s")
+        print(f"  - Tools TTL: {settings.cache.ttl_tools}s")
+        print(f"  - Generator TTL: {settings.cache.ttl_generator}s")
+    else:
+        print("⚠ Node caching disabled")
+
+    # Compile graph with both checkpointer (memory) and cache (performance)
+    graph = workflow.compile(
+        checkpointer=checkpointer,  # For state persistence between requests
+        cache=cache                  # For skipping expensive node executions
+    )
 
     return graph
 
@@ -92,7 +227,6 @@ def get_rag_graph():
     return _graph
 
 
-#@observe(name="rag_query", as_type="chain")
 def process_query(user_query: str, user_id: str = None, session_id: str = None) -> dict:
     """
     Process a user query through the RAG graph
@@ -106,6 +240,17 @@ def process_query(user_query: str, user_id: str = None, session_id: str = None) 
         Dictionary with answer and sources
     """
     start_time = time.time()
+
+    # Initialize Langfuse trace
+    langfuse_client = LangFuseClient.get_client()
+    trace = None
+    if langfuse_client:
+        trace = langfuse_client.trace(
+            name="rag_query",
+            user_id=user_id or settings.demo_user_id,
+            session_id=session_id or f"session_{user_id or settings.demo_user_id}",
+            input={"query": user_query}
+        )
 
     # Use demo user if not specified
     if not user_id:
@@ -141,16 +286,21 @@ def process_query(user_query: str, user_id: str = None, session_id: str = None) 
         routing_reason=None,
         cache_hit=False,
         processing_time_ms=None,
-        messages=[]
+        messages=[],
+        langfuse_trace=trace  # Pass trace to nodes
     )
 
     # Get graph
     graph = get_rag_graph()
 
     try:
-        # Run graph
+        # Run graph with checkpointing support
         config = {
             "run_name": f"rag_query_{user_id}",
+            "configurable": {
+                "thread_id": session_id,  # Use session_id as thread_id for checkpointing
+                "checkpoint_ns": ""  # Default checkpoint namespace
+            }
         }
 
         final_state = graph.invoke(initial_state, config=config)
@@ -184,6 +334,53 @@ def process_query(user_query: str, user_id: str = None, session_id: str = None) 
 
         print(f"✓ Query processed in {processing_time:.2f}ms")
 
+        # Update Langfuse trace with result and add quality scores
+        if trace:
+            try:
+                trace.update(
+                    output={"answer": answer, "query_type": final_state.get("query_type")},
+                    metadata={
+                        "processing_time_ms": processing_time,
+                        "sources_count": len(final_state.get("sources", [])),
+                        "routing_reason": final_state.get("routing_reason")
+                    }
+                )
+
+                # Add quality scores
+                # 1. Answer length score (good answers are neither too short nor too long)
+                answer_length = len(answer)
+                length_score = 1.0 if 50 <= answer_length <= 500 else 0.5 if answer_length < 50 else 0.7
+
+                trace.score(
+                    name="answer_length_quality",
+                    value=length_score,
+                    comment=f"Answer length: {answer_length} chars"
+                )
+
+                # 2. Response time score (faster is better)
+                latency_score = 1.0 if processing_time < 3000 else 0.7 if processing_time < 5000 else 0.5
+
+                trace.score(
+                    name="response_time",
+                    value=latency_score,
+                    comment=f"Response time: {processing_time:.0f}ms"
+                )
+
+                # 3. Source availability score (for documentation queries)
+                if final_state.get("query_type") == "documentation":
+                    sources_count = len(final_state.get("sources", []))
+                    sources_score = 1.0 if sources_count >= 2 else 0.7 if sources_count == 1 else 0.3
+
+                    trace.score(
+                        name="sources_quality",
+                        value=sources_score,
+                        comment=f"Sources found: {sources_count}"
+                    )
+
+                langfuse_client.flush()
+            except Exception as lf_error:
+                print(f"⚠ Failed to update Langfuse trace: {lf_error}")
+
         return result
 
     except Exception as e:
@@ -191,11 +388,24 @@ def process_query(user_query: str, user_id: str = None, session_id: str = None) 
         import traceback
         traceback.print_exc()
 
+        # Update Langfuse trace with error
+        if trace:
+            try:
+                trace.update(
+                    output={"error": str(e)},
+                    level="ERROR",
+                    status_message=str(e)
+                )
+                langfuse_client.flush()
+            except Exception as lf_error:
+                print(f"⚠ Failed to update Langfuse trace: {lf_error}")
+
         error_result = {
             "answer": f"An error occurred while processing your query: {str(e)}",
             "sources": [],
             "query_type": "error",
             "processing_time_ms": (time.time() - start_time) * 1000,
+            "session_id": session_id,  # Always return session_id
         }
 
         return error_result

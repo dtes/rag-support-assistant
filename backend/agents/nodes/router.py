@@ -15,14 +15,22 @@ except ImportError:
         return decorator if not args else args[0]
 
 
-#@observe(name="route_query", as_type="chain")
 def route_query(state: AgentState) -> AgentState:
     """
     Router node: Classify query as documentation or operational
 
     Returns updated state with query_type and routing_reason
     """
+    import time
+    start_time = time.time()
+
     query = state["user_query"]
+    trace = state.get("langfuse_trace")
+
+    # Create span for routing step
+    span = None
+    if trace:
+        span = trace.span(name="router", input={"query": query})
 
     # Create LLM client
     llm = create_llm_client()
@@ -57,8 +65,30 @@ Respond in JSON format:
 JSON response:"""
 
     try:
+        # Track LLM generation with Langfuse
+        generation = None
+        if span:
+            generation = span.generation(
+                name="router_llm",
+                model="gpt-4o-mini",
+                input=[{"role": "system", "content": routing_prompt}]
+            )
+
         response = llm.invoke([("system", routing_prompt)])
         content = response.content.strip()
+
+        # Track token usage
+        if generation and hasattr(response, 'response_metadata'):
+            usage = response.response_metadata.get('token_usage', {})
+            if usage:
+                generation.end(
+                    output=content,
+                    usage={
+                        "input": usage.get('prompt_tokens', 0),
+                        "output": usage.get('completion_tokens', 0),
+                        "total": usage.get('total_tokens', 0)
+                    }
+                )
 
         # Parse JSON response
         import json
@@ -75,11 +105,25 @@ JSON response:"""
 
         print(f"[Router] Query type: {state['query_type']} - {state['routing_reason']}")
 
+        # Update span with result
+        if span:
+            latency_ms = (time.time() - start_time) * 1000
+            span.end(
+                output={
+                    "query_type": state["query_type"],
+                    "reasoning": state["routing_reason"]
+                },
+                metadata={"latency_ms": latency_ms}
+            )
+
     except Exception as e:
         print(f"[Router] Error: {e}")
         # Default to documentation on error
         state["query_type"] = "documentation"
         state["routing_reason"] = "Fallback to documentation due to routing error"
+
+        if span:
+            span.end(level="ERROR", status_message=str(e))
 
     return state
 

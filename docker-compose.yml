@@ -65,10 +65,10 @@ services:
       LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "false"
       LANGFUSE_INIT_ORG_ID: org-1
       LANGFUSE_INIT_PROJECT_ID: project-1
-      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY}
-      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_SECRET_KEY}
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: pk-lf-5f15073c10aded8072fe11481b4b6aaf
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: sk-lf-5faea9f9abe8e41438466fe5d28b487d41aa9e2d1272947d62915f43cb21720f
       LANGFUSE_INIT_USER_EMAIL: admin@example.com
-      LANGFUSE_INIT_USER_PASSWORD: Qwerty123#
+      LANGFUSE_INIT_USER_PASSWORD: supersecret
     depends_on:
       langfuse-db:
         condition: service_healthy
@@ -80,24 +80,6 @@ services:
       start_period: 60s
     networks:
       - rag-network
-
-#  ollama:
-#    image: ollama/ollama:latest
-#    ports:
-#      - "11434:11434"
-#    volumes:
-#      - ollama_data:/root/.ollama
-#    networks:
-#      - rag-network
-#    healthcheck:
-#      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
-#      interval: 10s
-#      timeout: 5s
-#      retries: 5
-#    # Auto-pull model on startup
-#    entrypoint: ["/bin/sh", "-c"]
-#    command: >
-#      "ollama serve & sleep 5 && ollama pull llama3.2:3b && wait"
 
   backend:
     build: ./backend
@@ -116,11 +98,10 @@ services:
       - SENTENCE_TRANSFORMERS_HOME=/app/models
       - HF_HOME=/app/models
       - REDIS_URL=redis://redis:6379
+      - CHECKPOINT_ENABLED=${CHECKPOINT_ENABLED}
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
       - LANGFUSE_HOST=http://langfuse:3000
-      # Disable OpenTelemetry SDK - LangFuse v2 doesn't support it
-      - OTEL_SDK_DISABLED=true
     volumes:
       - ./data:/app/data:ro
       - ./frontend:/app/frontend:ro

@@ -15,19 +15,30 @@ except ImportError:
         return decorator if not args else args[0]
 
 
-#@observe(name="generate_answer", as_type="generation")
 def generate_answer(state: AgentState) -> AgentState:
     """
     Generator node: Create final answer from retrieved docs or tool results
 
     Updates state with answer
     """
+    import time
+    start_time = time.time()
+
     query = state["user_query"]
     query_type = state.get("query_type", "unknown")
     chat_history = state.get("chat_history", [])
+    trace = state.get("langfuse_trace")
 
     print(f"[Generator] Generating answer for: {query_type}")
     print(f"[Generator] Chat history length: {len(chat_history)}")
+
+    # Create span for generation step
+    span = None
+    if trace:
+        span = trace.span(
+            name="generator",
+            input={"query": query, "query_type": query_type}
+        )
 
     llm = create_llm_client()
 
@@ -112,15 +123,52 @@ Please provide your answer based on the data:"""
         # Add current user query
         messages.append(("human", user_prompt))
 
+        # Track LLM generation with Langfuse
+        generation = None
+        if span:
+            generation = span.generation(
+                name="answer_generation",
+                model="gpt-4o-mini",
+                input=messages
+            )
+
         # Generate answer
         response = llm.invoke(messages)
+
+        # Track token usage and cost
+        if generation and hasattr(response, 'response_metadata'):
+            usage = response.response_metadata.get('token_usage', {})
+            if usage:
+                generation.end(
+                    output=response.content,
+                    usage={
+                        "input": usage.get('prompt_tokens', 0),
+                        "output": usage.get('completion_tokens', 0),
+                        "total": usage.get('total_tokens', 0)
+                    }
+                )
 
         state["answer"] = response.content
 
         print(f"[Generator] Answer generated ({len(response.content)} chars)")
 
+        # Update span with result
+        if span:
+            latency_ms = (time.time() - start_time) * 1000
+            span.end(
+                output={"answer": response.content[:200]},  # First 200 chars
+                metadata={
+                    "latency_ms": latency_ms,
+                    "answer_length": len(response.content),
+                    "query_type": query_type
+                }
+            )
+
     except Exception as e:
         print(f"[Generator] Error: {e}")
         state["answer"] = f"An error occurred while generating the answer: {str(e)}"
+
+        if span:
+            span.end(level="ERROR", status_message=str(e))
 
     return state

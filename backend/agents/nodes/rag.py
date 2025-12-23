@@ -27,7 +27,6 @@ def get_rag_service() -> RAGService:
     return _rag_service
 
 
-#@observe(name="rag_retrieve", as_type="retriever")
 def rag_retrieve(state: AgentState) -> AgentState:
     """
     RAG node: Search vector database for relevant documents

@@ -1,239 +1,480 @@
-# 🤖 RAG Finance Assistant
+# RAG Finance Assistant - Complete Implementation Summary
 
-[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
-[![LangChain](https://img.shields.io/badge/LangChain-0.3+-green.svg)](https://github.com/langchain-ai/langchain)
-[![LangGraph](https://img.shields.io/badge/LangGraph-0.2+-orange.svg)](https://github.com/langchain-ai/langgraph)
-[![Docker](https://img.shields.io/badge/Docker-Compose-blue.svg)](https://www.docker.com/)
+## Core Idea
 
-## Project Description
+Advanced RAG system for a financial SaaS service with support for:
 
-### Core Idea
-Продвинутая RAG-система для финансового SaaS-сервиса с поддержкой:
-- 🔍 Multi-sourcing (документация + оперативные данные через API)
-- 💬 Chat Memory (помнит всю беседу)
-- 📊 Observability (LangFuse для трейсинга и метрик)
-- 🤖 LangGraph для интеллектуального роутинга
+- 🔍 Multi-sourcing (documentation + operational data via API)
+- 💬 Chat Memory (remembers entire conversation)
+- 📊 Observability (LangFuse for tracing and metrics)
+- 🤖 LangGraph for intelligent routing
 
-### ✨ Key Features
+---
 
-#### 🎯 Multi-sourcing (Dual Data Sources)
-Система автоматически определяет источник данных:
-- **Статическая документация** → RAG (Weaviate)
-- **Оперативные данные** → Finance API (транзакции, балансы, отчеты)
+## 🎯 Implemented Features
 
+### 1. Multi-sourcing (Two Data Sources)
+
+#### A. Static Documentation (RAG Path)
+
+- Vector search in Weaviate
+- Chunking and embeddings (all-MiniLM-L6-v2)
+- Top-K retrieval with metadata
+
+#### B. Operational Data (Tool Calling Path)
+
+- **6 Mock Finance API endpoints:**
+  1. `get_transactions` - transactions for a period
+  2. `get_cash_flow_report` - cash flow statement
+  3. `get_account_balance` - account balances
+  4. `get_profit_loss_report` - profit & loss statement
+  5. `get_expense_categories` - expense categories reference
+  6. `get_counterparties` - counterparties reference
+
+### 2. Intelligent Routing
+
+**Router Node** automatically determines the query type:
 ```
-"Как создать отчет?" → Documentation (RAG Path)
-"Какой у меня баланс?" → API Call (Tools Path)
-```
-
-#### 💭 Chat Memory
-Полноценная память диалогов:
-- Backend: Redis с TTL 24 часа
-- Frontend: localStorage с автосохранением session_id
-- Контекстные ответы на основе истории беседы
-
-```
-Вы: Покажи мои расходы за месяц
-Бот: За месяц ваши расходы составили 450,000 тенге...
-
-Вы: А сколько из них на аренду?
-Бот: На аренду было потрачено 150,000 тенге ✅ (помнит контекст!)
-```
-
-#### 📈 LangFuse Observability
-- Полный трейсинг всех LangGraph узлов
-- Метрики: latency, tokens, cost
-- Dashboard: http://localhost:3000
-
-#### 🛠️ Mock Finance API
-6 готовых endpoints:
-- `get_transactions` - транзакции за период
-- `get_cash_flow_report` - отчет ДДС
-- `get_account_balance` - балансы счетов
-- `get_profit_loss_report` - отчет ОПиУ
-- `get_expense_categories` - справочник категорий
-- `get_counterparties` - справочник контрагентов
-
-### Technical Stack
-
-#### System Architecture
-- **LangGraph** - Multi-step reasoning state machine
-- **LangChain** - LLM orchestration
-- **LangFuse** - Observability platform
-- **Redis** - Chat memory & caching
-- **Weaviate** - Vector database
-- **FastAPI** - Backend framework
-- **Azure OpenAI** - LLM provider (или Ollama для локального)
-
-#### Components
-1. **LangGraph Pipeline** - Router → RAG/Tools → Generator
-2. **Memory Service** - Redis для хранения истории
-3. **Mock Finance API** - Эмуляция финансовых данных
-4. **LangFuse** - Self-hosted observability
-5. **Frontend** - Chat UI с session management
-
-### Dataset Concept
-- **Data Type**: Markdown files with site documentation
-- **Volume**: 20 documentation articles
-- **Storage Format**: Documents are split into chunks (~500 tokens), each chunk is vectorized
-- **Metadata**: filename, title, chunk position
-
-### System Requirements
-- Docker and Docker Compose
-- 8GB RAM (minimum), 16GB RAM (recommended)
-- Azure OpenAI API key (или Ollama для локального запуска)
-
-### New in Version 1.0
-- ✅ LangGraph multi-step reasoning
-- ✅ Chat memory (Redis + localStorage)
-- ✅ LangFuse observability
-- ✅ Mock Finance API (6 endpoints)
-- ✅ Intelligent routing (documentation vs operational)
-- ✅ Session management на frontend
-
-## Quick Start
-
-### Prerequisites
-1. Docker and Docker Compose
-2. Azure OpenAI API key (или Ollama)
-
-### Installation and Launch
-
-```bash
-# 1. Настроить окружение
-cp .env.example .env
-nano .env  # Добавить AZURE_OPENAI_API_KEY
-
-# 2. Запустить систему
-docker-compose up --build
-
-# 3. Открыть браузер
-http://localhost:8000
+"How to create a report?" → Documentation (RAG)
+"What is my balance?" → Operational (Tools)
 ```
 
-**Доступные сервисы:**
-- 🌐 Frontend UI: http://localhost:8000
-- 📊 LangFuse Dashboard: http://localhost:3000
-- 🔍 API Docs: http://localhost:8000/docs
-- 📡 Weaviate: http://localhost:8080
+LLM analyzes the question and selects the correct processing path.
 
-**On first launch:**
-- Weaviate создаст схему для векторов
-- Redis запустится для chat memory
-- LangFuse + PostgreSQL для observability
-- Backend загрузит все .md файлы из `data/`
-- Документация будет проиндексирована
+### 3. Chat Memory (Conversation Memory)
 
-### Stopping the system
-```bash
-docker-compose down
+#### Backend (Redis)
+- History storage in Redis with 24-hour TTL
+- Automatic session management
+- API endpoints for history management
+
+#### Frontend (localStorage)
+- Automatic session_id saving
+- Session restoration on reload
+- "New Chat" button to start a new conversation
+- Visual indicator "● Chat memory active"
+
+#### Examples of contextual conversations:
+```
+User: Show my expenses for the month
+Bot: For the month, your expenses totaled 450,000 tenge...
+
+User: How much of that was for rent?
+Bot: 150,000 tenge was spent on rent (remembers context!)
 ```
 
-### Data cleanup
-For complete cleanup (including vector DB):
-```bash
-docker-compose down -v
+### 4. Observability (LangFuse)
+
+- Self-hosted LangFuse in Docker
+- Automatic tracing of all LangGraph nodes
+- Metrics: latency, tokens, cost
+- UI available at http://localhost:3000
+
+**What is tracked:**
+- Complete request execution path
+- Execution time for each node
+- LLM token usage
+- Request costs
+
+### 5. Security
+
+- **User Context**: user_id passed to all API calls
+- **Input Validation**: empty message validation
+- **Demo Mode**: hardcoded user_id for testing
+- **Session Isolation**: each user has their own history
+
+---
+
+## 🏗️ System Architecture
+
+### LangGraph Pipeline
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    User Query                       │
+└────────────────────┬────────────────────────────────┘
+                     │
+                     ▼
+         ┌───────────────────────┐
+         │    Router Node        │
+         │  (LLM Classification) │
+         └───────┬───────────────┘
+                 │
+        ┌────────┴────────┐
+        │                 │
+        ▼                 ▼
+┌───────────────┐   ┌──────────────┐
+│   RAG Node    │   │  Tools Node  │
+│  (Weaviate)   │   │  (API Calls) │
+└───────┬───────┘   └──────┬───────┘
+        │                  │
+        └────────┬─────────┘
+                 │
+                 ▼
+      ┌──────────────────┐
+      │  Generator Node  │
+      │  (Final Answer)  │
+      └──────────────────┘
+                 │
+                 ▼
+      ┌──────────────────┐
+      │  Save to Redis   │
+      │  (Chat Memory)   │
+      └──────────────────┘
+                 │
+                 ▼
+      ┌──────────────────┐
+      │  LangFuse Trace  │
+      │  (Observability) │
+      └──────────────────┘
 ```
 
-## Usage & Testing
+### System Components
 
-### 🧪 Тест Chat Memory
-
-```bash
-# Откройте http://localhost:8000
-
-# 1. Первое сообщение
-"Привет! Меня зовут Dias"
-
-# 2. Проверьте индикатор
-Должна появиться надпись: "● Chat memory active" ✅
-
-# 3. Второе сообщение
-"Как меня зовут?"
-
-# 4. Ожидаемый результат
-"Вас зовут Dias" ✅ (помнит контекст!)
+```
+┌─────────────────────────────────────────────────┐
+│              Docker Compose Stack               │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  ┌──────────────┐  ┌──────────────┐           │
+│  │   Weaviate   │  │    Redis     │           │
+│  │ Vector Store │  │  Chat Memory │           │
+│  └──────────────┘  └──────────────┘           │
+│                                                 │
+│  ┌──────────────┐  ┌──────────────┐           │
+│  │  PostgreSQL  │  │   LangFuse   │           │
+│  │ LangFuse DB  │  │   UI:3000    │           │
+│  └──────────────┘  └──────────────┘           │
+│                                                 │
+│  ┌─────────────────────────────────────────┐  │
+│  │         FastAPI Backend :8000           │  │
+│  │  ┌───────────────────────────────────┐  │  │
+│  │  │       LangGraph Pipeline          │  │  │
+│  │  │  - Router                         │  │  │
+│  │  │  - RAG                            │  │  │
+│  │  │  - Tools                          │  │  │
+│  │  │  - Generator                      │  │  │
+│  │  └───────────────────────────────────┘  │  │
+│  │                                          │  │
+│  │  Services:                               │  │
+│  │  - Memory Service (Redis)                │  │
+│  │  - LangFuse Client                       │  │
+│  │  - Mock Finance API                      │  │
+│  └─────────────────────────────────────────┘  │
+│                                                 │
+└─────────────────────────────────────────────────┘
 ```
 
-### Example Questions
+---
 
-**Documentation (RAG Path):**
-- "Как создать отчет в системе?"
-- "Что такое ДДС?"
-- "Как настроить категории расходов?"
+## 📁 Project Structure
 
-**Operational Data (Tools Path):**
-- "Какой у меня баланс?"
-- "Покажи мои расходы за месяц"
-- "Сколько на резервном счете?"
-
-**Contextual Dialogue:**
-```
-Вы: Покажи мои расходы за месяц
-Бот: За месяц ваши расходы составили 450,000 тенге...
-
-Вы: А сколько из них на маркетинг?
-Бот: На маркетинг было потрачено 80,000 тенге ✅
-```
-
-## Project Structure
 ```
 rag-support-assistant/
-├── docker-compose.yml          # Container orchestration
-├── .env                        # API keys (create manually)
-├── README.md                   # Documentation
 ├── backend/
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── main.py                 # FastAPI application
-│   ├── rag_service.py          # RAG logic
-│   └── loader.py               # Documentation loader
+│   ├── agents/                    # LangGraph components
+│   │   ├── graph.py              # ⭐ Main graph
+│   │   ├── state.py              # AgentState schema
+│   │   └── nodes/
+│   │       ├── router.py         # Query classification
+│   │       ├── rag.py            # Vector search
+│   │       ├── tools.py          # Tool calling
+│   │       └── generator.py      # Answer generation
+│   │
+│   ├── tools/                     # API and tools
+│   │   ├── mock_finance_api.py   # ⭐ Mock finance APIs
+│   │   └── tool_definitions.py   # LangChain tools
+│   │
+│   ├── services/                  # Services
+│   │   └── memory_service.py     # ⭐ Redis chat memory
+│   │
+│   ├── config/
+│   │   └── settings.py           # ⭐ Pydantic settings
+│   │
+│   ├── observability/
+│   │   └── langfuse_client.py    # LangFuse integration
+│   │
+│   ├── middleware/
+│   │   └── auth.py               # User context (future)
+│   │
+│   ├── main.py                   # ⭐ FastAPI endpoints
+│   ├── rag_service.py            # RAG logic
+│   ├── llm_client.py             # LLM initialization
+│   ├── db_client.py              # Weaviate connection
+│   ├── loader.py                 # Data indexing
+│   └── requirements.txt          # ⭐ Dependencies
+│
 ├── frontend/
-│   └── index.html              # Web chat interface
-└── data/                       # Folder for .md files (add yourself)
+│   └── index.html                # ⭐ UI with chat memory
+│
+├── data/                         # Documentation for RAG
+│   └── *.md
+│
+├── docker-compose.yml            # ⭐ Infrastructure
+├── .env.example                  # ⭐ Configuration
+│
+└── Documentation:
+    ├── README_IMPLEMENTATION.md  # Main documentation
+    ├── CHAT_MEMORY_GUIDE.md      # Memory guide
+    ├── FRONTEND_MEMORY_TEST.md   # Frontend testing
+    └── SUMMARY.md                # This file
 ```
 
-## Technical Implementation
+---
 
-### RAG Pipeline
-1. **Indexing** (on startup):
-   - Reading .md files from `data/`
-   - Splitting into chunks (RecursiveCharacterTextSplitter)
-   - Creating embeddings using local sentence-transformers model
-   - Saving to Weaviate
+## 🔧 Technology Stack
 
-2. **Query Processing**:
-   - Receiving user question
-   - Creating embedding for the question using local model
-   - Searching for top-3 relevant chunks in Weaviate
-   - Forming context
-   - Generating response via local Ollama LLM
-   - Returning response with sources
+### Backend
+- **Python 3.11+**
+- **FastAPI** - Web framework
+- **LangGraph** - State machine for agents
+- **LangChain** - LLM orchestration
+- **LangFuse** - Observability
+- **Redis** - Caching and chat memory
+- **Weaviate** - Vector database
+- **Sentence Transformers** - Local embeddings
+- **Pydantic** - Validation and settings
 
-### API Endpoints
-- `GET /` - Web interface
-- `POST /chat` - Main endpoint for questions
-- `GET /health` - System health check
-- `GET /stats` - Database statistics
+### Frontend
+- **Vanilla JavaScript** - No frameworks
+- **Marked.js** - Markdown rendering
+- **localStorage API** - Session_id persistence
 
-## Troubleshooting
+### Infrastructure
+- **Docker Compose** - Service orchestration
+- **PostgreSQL 15** - LangFuse database
+- **Azure OpenAI** - LLM provider
 
-### Issue: Containers not starting
-**Solution**: Ensure Docker is running and ports 8000, 8080, 11434 are free
+---
 
-### Issue: Ollama model downloading slowly
-**Solution**: First launch requires downloading ~2GB model. This is one-time only.
+## 🚀 Quick Start
 
-### Issue: Documentation not loading
-**Solution**:
-- Ensure .md files are in the `data/` folder
-- Check logs: `docker-compose logs backend`
+### 1. Environment Setup
 
-### Issue: Slow responses
-**Solution**: First request may be slow (model loading). Subsequent ones are faster.
+```bash
+# Copy configuration
+cp .env.example .env
 
-### Issue: Out of memory
-**Solution**: Increase Docker memory limit to at least 8GB in Docker settings.
+# Edit .env
+nano .env
+# Add: AZURE_OPENAI_API_KEY=your_key_here
+```
 
-## Video Demonstration
-[Video link to be added after recording]
+### 2. System Launch
+
+```bash
+# Start all services
+docker-compose up --build
+
+# Services will start on ports:
+# - Backend API: http://localhost:8000
+# - LangFuse UI: http://localhost:3000
+# - Weaviate: http://localhost:8080
+# - Redis: localhost:6379
+```
+
+### 3. LangFuse Setup (optional)
+
+```bash
+# 1. Open http://localhost:3000
+# 2. Create account and project
+# 3. Copy Public Key and Secret Key
+# 4. Add to .env:
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
+
+# 5. Restart backend
+docker-compose restart backend
+```
+
+### 4. Testing
+
+**Manual testing**:
+
+```bash
+# Open UI
+http://localhost:8000
+
+# Memory test
+1. "Hello! My name is Dias"
+2. "What is my name?" → "Your name is Dias" ✅
+
+# Routing test
+1. "What is my balance?" → Tools Path
+2. "How to reset password?" → RAG Path
+```
+
+**Using script**:
+
+```bash
+# Run test
+python test_cache_quick.py
+# View logs
+```
+
+---
+
+## 📈 Metrics and Monitoring
+
+Open LangFuse UI at http://localhost:3000
+
+Login:
+
+- Login: admin@example.com
+- Password: supersecret
+
+### LangFuse Dashboard
+
+1. **Traces** - complete request path
+2. **Latency** - execution time
+3. **Tokens** - token usage
+4. **Cost** - request costs
+5. **Success Rate** - percentage of successful requests
+
+![langfuse-metrics.png](images/screenshot-langfuse-metrics.png)
+
+Metrics show how caching helps:
+
+- Reduce latency. Speed +, UX +
+- Reduce cost. Economics +
+
+---
+
+## 📊 API Endpoints
+
+### Chat Endpoints
+
+#### POST /chat
+
+Main endpoint for dialogue
+
+**Request:**
+
+```json
+{
+  "message": "What is my balance?",
+  "session_id": "session_user_123"  // optional
+}
+```
+
+**Response:**
+
+```json
+{
+  "answer": "Your total balance is 2,100,000 tenge...",
+  "sources": [
+    {"title": "API: get_account_balance", "filename": "Operational Data"}
+  ],
+  "query_type": "operational",
+  "processing_time_ms": 1523.45,
+  "session_id": "session_user_123"
+}
+```
+
+#### GET /chat/history/{session_id}
+
+Get chat history
+
+```bash
+curl http://localhost:8000/chat/history/session_user_123?limit=20
+```
+
+#### DELETE /chat/history/{session_id}
+
+Clear history
+
+```bash
+curl -X DELETE http://localhost:8000/chat/history/session_user_123
+```
+
+### System Endpoints
+
+#### GET /health
+
+Health check
+
+#### GET /stats
+
+System statistics
+
+---
+
+## 💡 Key Features
+
+### 1. Automatic Routing
+
+LLM determines where to route the request:
+
+- **Documentation questions** → RAG (Weaviate)
+- **Operational questions** → Tools (API calls)
+
+### 2. Contextual Memory
+
+System remembers the entire conversation:
+
+```
+User: Show expenses for the month
+Bot: [expense data]
+
+User: How much of that was for marketing?
+Bot: [analyzes monthly expenses - remembers context!]
+```
+
+### 3. Persistence
+
+- History saved in Redis (24 hours)
+- Session_id in browser localStorage
+- Session restored on reload
+
+### 4. Observability
+
+Complete tracing in LangFuse:
+
+- Which path chosen (RAG/Tools)
+- Time spent on each node
+- Tokens used
+- Request cost
+
+### 5. Security
+
+- User context in every API call
+- Session isolation
+- TTL for automatic data cleanup
+
+---
+
+## 🎨 Frontend Features
+
+### UI Components
+
+- **Chat Interface** - modern design
+- **Markdown Support** - formatted responses
+- **Typing Indicator** - processing indication
+- **Sources Display** - data source display
+- **Session Indicator** - "● Chat memory active"
+- **New Chat Button** - quick start for new conversation
+
+### UX Improvements
+
+- Auto-save session
+- Restore on reload
+- Hints with example questions
+- Smooth scrolling to new messages
+
+---
+
+## 📚 Documentation
+
+### Main Documents
+1. **README_IMPLEMENTATION.md** - Complete architecture guide
+2. **CHAT_MEMORY_GUIDE.md** - Working with conversation memory
+3. **FRONTEND_MEMORY_TEST.md** - Frontend testing
+4. **SUMMARY.md** - This document
+
+### API Documentation
+- OpenAPI specification: http://localhost:8000/docs
+- Redoc: http://localhost:8000/redoc
+
+---
+
+![Chat UI](/images/screenshot-chat.png)

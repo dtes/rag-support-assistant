@@ -45,3 +45,6 @@ class AgentState(MessagesState):
     routing_reason: Optional[str]  # Why router chose this path
     cache_hit: bool  # Whether response was cached
     processing_time_ms: Optional[float]
+
+    # Langfuse trace (not serialized)
+    langfuse_trace: Optional[Any]  # Langfuse trace object for logging
