@@ -8,6 +8,7 @@ from sentence_transformers import SentenceTransformer
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pathlib import Path
 from db_client import connect_weaviate
+from config.settings import settings
 
 # Конфигурация
 WEAVIATE_URL = os.getenv("WEAVIATE_URL", "http://weaviate:8080")
@@ -103,9 +104,10 @@ def load_documents():
         print("✓ Коллекция очищена")
     
     # Инициализация текстового сплиттера
+    print(f"Using RecursiveCharacterTextSplitter (chunk_size={settings.chunking.chunk_size}, chunk_overlap={settings.chunking.chunk_overlap})")
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=500,
-        chunk_overlap=50,
+        chunk_size=settings.chunking.chunk_size,
+        chunk_overlap=settings.chunking.chunk_overlap,
         length_function=len,
     )
     

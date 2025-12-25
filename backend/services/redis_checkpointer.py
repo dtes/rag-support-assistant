@@ -10,6 +10,7 @@ import redis
 from copy import deepcopy
 
 from langgraph.checkpoint.base import BaseCheckpointSaver, Checkpoint, CheckpointMetadata, CheckpointTuple
+from langgraph.checkpoint.memory import MemorySaver
 
 from config.settings import settings
 
@@ -52,8 +53,27 @@ class RedisCheckpointSaver(BaseCheckpointSaver):
         """
         Clean checkpoint by removing unpicklable objects
 
-        Removes Langfuse trace objects and other non-serializable items
+        Removes Langfuse trace objects and converts numpy types to native Python types
         """
+        import numpy as np
+
+        def convert_numpy_types(obj):
+            """Recursively convert numpy types to native Python types"""
+            if isinstance(obj, np.integer):
+                return int(obj)
+            elif isinstance(obj, np.floating):
+                return float(obj)
+            elif isinstance(obj, np.ndarray):
+                return obj.tolist()
+            elif isinstance(obj, dict):
+                return {key: convert_numpy_types(value) for key, value in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_numpy_types(item) for item in obj]
+            elif isinstance(obj, tuple):
+                return tuple(convert_numpy_types(item) for item in obj)
+            else:
+                return obj
+
         try:
             # Create a new checkpoint dict without deepcopy to avoid copying locks
             cleaned = {
@@ -69,21 +89,21 @@ class RedisCheckpointSaver(BaseCheckpointSaver):
             # Manually copy channel_values, excluding unpicklable objects
             if "channel_values" in checkpoint and checkpoint["channel_values"]:
                 for key, value in checkpoint["channel_values"].items():
-                    # Skip unpicklable objects
-                    if key == "langfuse_trace":
-                        cleaned["channel_values"][key] = None
-                    elif key == "messages":
+                    # langfuse_trace_id is now a string, no need to skip
+                    if key == "messages":
                         # Messages might contain unpicklable objects, copy carefully
                         try:
                             cleaned["channel_values"][key] = value
                         except:
                             cleaned["channel_values"][key] = []
                     else:
-                        # Copy other simple values
+                        # Copy other values and convert numpy types
                         try:
+                            # Convert numpy types to native Python types
+                            converted_value = convert_numpy_types(value)
                             # Test if picklable
-                            pickle.dumps(value)
-                            cleaned["channel_values"][key] = value
+                            pickle.dumps(converted_value)
+                            cleaned["channel_values"][key] = converted_value
                         except:
                             # If not picklable, store None
                             cleaned["channel_values"][key] = None
@@ -250,38 +270,72 @@ class RedisCheckpointSaver(BaseCheckpointSaver):
         pass
 
 
-# Global checkpointer instance
-_checkpointer: Optional[RedisCheckpointSaver] = None
+# Global checkpointer instances
+_redis_checkpointer: Optional[RedisCheckpointSaver] = None
+_memory_checkpointer: Optional[MemorySaver] = None
 
 
-def get_redis_checkpointer() -> Optional[RedisCheckpointSaver]:
+def get_checkpointer() -> Optional[BaseCheckpointSaver]:
     """
-    Get or create Redis checkpointer instance
+    Get or create checkpointer instance based on configuration
 
     Returns:
-        RedisCheckpointSaver instance or None if Redis unavailable
+        Checkpointer instance (Redis or Memory) or None if disabled
     """
-    global _checkpointer
+    global _redis_checkpointer, _memory_checkpointer
 
-    if _checkpointer is None:
-        try:
-            # Get Redis client
-            redis_client = redis.from_url(
-                settings.redis.url,
-                decode_responses=False  # Need binary mode for serialization
-            )
+    # If checkpointing is disabled, return None
+    if not settings.redis.checkpoint_enabled:
+        return None
 
-            # Test connection
-            redis_client.ping()
+    # Determine which checkpointer to use based on configuration
+    checkpointer_type = settings.redis.checkpointer_type.lower()
 
-            # Create checkpointer with configured TTL
-            _checkpointer = RedisCheckpointSaver(
-                redis_client=redis_client,
-                ttl=settings.redis.ttl_checkpoints
-            )
+    if checkpointer_type == "redis":
+        # Use Redis checkpointer
+        if _redis_checkpointer is None:
+            try:
+                # Get Redis client
+                redis_client = redis.from_url(
+                    settings.redis.url,
+                    decode_responses=False  # Need binary mode for serialization
+                )
 
-        except Exception as e:
-            print(f"✗ Failed to initialize Redis checkpointer: {e}")
-            _checkpointer = None
+                # Test connection
+                redis_client.ping()
 
-    return _checkpointer
+                # Create checkpointer with configured TTL
+                _redis_checkpointer = RedisCheckpointSaver(
+                    redis_client=redis_client,
+                    ttl=settings.redis.ttl_checkpoints
+                )
+                print(f"✓ Using Redis checkpointer")
+
+            except Exception as e:
+                print(f"✗ Failed to initialize Redis checkpointer: {e}")
+                print(f"⚠ Falling back to Memory checkpointer")
+                checkpointer_type = "memory"  # Fallback to memory
+
+        if _redis_checkpointer is not None:
+            return _redis_checkpointer
+
+    # Use Memory checkpointer (default or fallback)
+    if checkpointer_type == "memory" or _redis_checkpointer is None:
+        if _memory_checkpointer is None:
+            _memory_checkpointer = MemorySaver()
+            print(f"✓ Using Memory checkpointer (in-RAM)")
+
+        return _memory_checkpointer
+
+    return None
+
+
+# Legacy function name for backwards compatibility
+def get_redis_checkpointer() -> Optional[BaseCheckpointSaver]:
+    """
+    Legacy function - use get_checkpointer() instead
+
+    Returns:
+        Checkpointer instance (Redis or Memory) based on configuration
+    """
+    return get_checkpointer()

@@ -25,7 +25,16 @@ def route_query(state: AgentState) -> AgentState:
     start_time = time.time()
 
     query = state["user_query"]
-    trace = state.get("langfuse_trace")
+    trace_id = state.get("langfuse_trace_id")
+
+    # Recreate trace from trace_id
+    trace = None
+    if trace_id:
+        from observability.langfuse_client import LangFuseClient
+        langfuse_client = LangFuseClient.get_client()
+        if langfuse_client:
+            trace = langfuse_client.trace(id=trace_id)
+            print(f"[Router] Trace restored: {trace_id}")
 
     # Create span for routing step
     span = None

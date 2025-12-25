@@ -11,7 +11,7 @@ from agents.nodes.tools import call_tools
 from agents.nodes.generator import generate_answer
 from observability.langfuse_client import LangFuseClient
 from config.settings import settings
-from services.redis_checkpointer import get_redis_checkpointer
+from services.redis_checkpointer import get_checkpointer
 
 import time
 import hashlib
@@ -34,25 +34,45 @@ def clean_state_for_caching(state: dict) -> dict:
     """
     Clean state by removing unpicklable objects before caching
 
-    Removes: langfuse_trace (RLock), converts deque to list
+    Converts:
+    - deque to list (MessagesState uses deque)
+    - numpy types to native Python types (from vector search/reranking)
 
     Args:
         state: Original state dictionary
 
     Returns:
-        Cleaned state safe for pickling
+        Cleaned state safe for msgpack serialization
     """
-    cleaned = dict(state)
+    import numpy as np
 
-    # Remove unpicklable langfuse trace
-    if "langfuse_trace" in cleaned:
-        cleaned["langfuse_trace"] = None
+    def convert_numpy_types(obj):
+        """Recursively convert numpy types to native Python types"""
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, dict):
+            return {key: convert_numpy_types(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [convert_numpy_types(item) for item in obj]
+        elif isinstance(obj, tuple):
+            return tuple(convert_numpy_types(item) for item in obj)
+        else:
+            return obj
+
+    cleaned = dict(state)
 
     # Convert deque to list (MessagesState uses deque which is not msgpack serializable)
     if "messages" in cleaned:
         from collections import deque
         if isinstance(cleaned["messages"], deque):
             cleaned["messages"] = list(cleaned["messages"])
+
+    # Convert numpy types to native Python types (from retrieved_docs, reranked_docs, etc.)
+    cleaned = convert_numpy_types(cleaned)
 
     return cleaned
 
@@ -98,7 +118,7 @@ def make_cacheable_node(node_func):
 
 
 def create_rag_graph() -> StateGraph:
-    """
+    r"""
     Create the RAG workflow graph
 
     Graph structure:
@@ -184,14 +204,15 @@ def create_rag_graph() -> StateGraph:
     # Generator flows to END
     workflow.add_edge("generator", END)
 
-    # Get Redis checkpointer for state persistence (memory)
+    # Get checkpointer for state persistence (Redis or Memory)
     checkpointer = None
     if settings.redis.checkpoint_enabled:
-        checkpointer = get_redis_checkpointer()
+        checkpointer = get_checkpointer()
         if checkpointer:
-            print("✓ Checkpointing enabled for state persistence")
+            checkpointer_type = settings.redis.checkpointer_type.upper()
+            print(f"✓ Checkpointing enabled ({checkpointer_type} mode)")
         else:
-            print("⚠ Checkpointing disabled (Redis unavailable)")
+            print("⚠ Checkpointing disabled (initialization failed)")
 
     # Initialize cache for node-level caching (performance)
     cache = None
@@ -205,9 +226,9 @@ def create_rag_graph() -> StateGraph:
     else:
         print("⚠ Node caching disabled")
 
-    # Compile graph with both checkpointer (memory) and cache (performance)
+    # Compile graph with both checkpointer (state persistence) and cache (performance)
     graph = workflow.compile(
-        checkpointer=checkpointer,  # For state persistence between requests
+        checkpointer=checkpointer,  # For state persistence (Redis or Memory)
         cache=cache                  # For skipping expensive node executions
     )
 
@@ -244,6 +265,7 @@ def process_query(user_query: str, user_id: str = None, session_id: str = None) 
     # Initialize Langfuse trace
     langfuse_client = LangFuseClient.get_client()
     trace = None
+    trace_id = None
     if langfuse_client:
         trace = langfuse_client.trace(
             name="rag_query",
@@ -251,6 +273,8 @@ def process_query(user_query: str, user_id: str = None, session_id: str = None) 
             session_id=session_id or f"session_{user_id or settings.demo_user_id}",
             input={"query": user_query}
         )
+        # Extract trace ID for passing to nodes
+        trace_id = trace.id if trace else None
 
     # Use demo user if not specified
     if not user_id:
@@ -287,7 +311,7 @@ def process_query(user_query: str, user_id: str = None, session_id: str = None) 
         cache_hit=False,
         processing_time_ms=None,
         messages=[],
-        langfuse_trace=trace  # Pass trace to nodes
+        langfuse_trace_id=trace_id  # Pass trace ID to nodes (serializable)
     )
 
     # Get graph
@@ -346,36 +370,52 @@ def process_query(user_query: str, user_id: str = None, session_id: str = None) 
                     }
                 )
 
-                # Add quality scores
-                # 1. Answer length score (good answers are neither too short nor too long)
-                answer_length = len(answer)
-                length_score = 1.0 if 50 <= answer_length <= 500 else 0.5 if answer_length < 50 else 0.7
+                # Add quality scores using evaluation service
+                from services.evaluation_service import get_evaluation_service
+                eval_service = get_evaluation_service()
 
+                # 1. Relevance: how well the answer addresses the query
+                relevance_score = eval_service.evaluate_relevance(
+                    query=user_query,
+                    answer=answer
+                )
                 trace.score(
-                    name="answer_length_quality",
-                    value=length_score,
-                    comment=f"Answer length: {answer_length} chars"
+                    name="relevance",
+                    value=relevance_score,
+                    comment="LLM-as-judge evaluation of answer relevance"
                 )
 
-                # 2. Response time score (faster is better)
-                latency_score = 1.0 if processing_time < 3000 else 0.7 if processing_time < 5000 else 0.5
+                # 2. Context precision: quality of retrieved documents (for documentation queries)
+                if final_state.get("query_type") == "documentation" and final_state.get("retrieved_docs"):
+                    precision_score, precision_comment = eval_service.evaluate_context_precision(
+                        query=user_query,
+                        retrieved_docs=final_state.get("retrieved_docs", [])
+                    )
+                    trace.score(
+                        name="context_precision",
+                        value=precision_score,
+                        comment=precision_comment
+                    )
 
+                    # 2b. Recall: whether all necessary information was retrieved
+                    recall_score, recall_comment = eval_service.evaluate_recall(
+                        query=user_query,
+                        answer=answer,
+                        retrieved_docs=final_state.get("retrieved_docs", [])
+                    )
+                    trace.score(
+                        name="recall",
+                        value=recall_score,
+                        comment=recall_comment
+                    )
+
+                # 3. Response time score (faster is better)
+                latency_score = 1.0 if processing_time < 3000 else 0.7 if processing_time < 5000 else 0.5
                 trace.score(
                     name="response_time",
                     value=latency_score,
                     comment=f"Response time: {processing_time:.0f}ms"
                 )
-
-                # 3. Source availability score (for documentation queries)
-                if final_state.get("query_type") == "documentation":
-                    sources_count = len(final_state.get("sources", []))
-                    sources_score = 1.0 if sources_count >= 2 else 0.7 if sources_count == 1 else 0.3
-
-                    trace.score(
-                        name="sources_quality",
-                        value=sources_score,
-                        comment=f"Sources found: {sources_count}"
-                    )
 
                 langfuse_client.flush()
             except Exception as lf_error:

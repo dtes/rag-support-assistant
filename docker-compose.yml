@@ -21,20 +21,20 @@ services:
     networks:
       - rag-network
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - rag-network
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   command: redis-server --appendonly yes
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - rag-network
 
   langfuse-db:
     image: postgres:15-alpine
@@ -102,21 +102,31 @@ services:
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
       - LANGFUSE_HOST=http://langfuse:3000
+      # RAG Quality Improvements Configuration
+      - CHUNK_SIZE=${CHUNK_SIZE}
+      - CHUNK_OVERLAP=${CHUNK_OVERLAP}
+      - SEARCH_METHOD=${SEARCH_METHOD}
+      - HYBRID_ALPHA=${HYBRID_ALPHA}
+      - RERANK_ENABLED=${RERANK_ENABLED}
+      - RAG_INITIAL_TOP_K=${RAG_INITIAL_TOP_K}
+      - RAG_FINAL_TOP_K=${RAG_FINAL_TOP_K}
+      - FLASHRANK_CACHE_DIR=/app/.cache/flashrank
     volumes:
       - ./data:/app/data:ro
       - ./frontend:/app/frontend:ro
       - ./backend:/app:rw
       - embedding_models:/app/models
+      - flashrank_cache:/app/.cache/flashrank
     depends_on:
       weaviate:
         condition: service_healthy
-      redis:
-        condition: service_healthy
+      # redis:
+      #   condition: service_healthy
       # LangFuse is optional - backend will work without it
       # langfuse:
       #   condition: service_healthy
-#      ollama:
-#        condition: service_healthy
+      # ollama:
+      #   condition: service_healthy
     networks:
       - rag-network
     command: >
@@ -130,6 +140,7 @@ volumes:
   weaviate_data:
   ollama_data:
   embedding_models:
+  flashrank_cache:
   redis_data:
   langfuse_db_data:
 

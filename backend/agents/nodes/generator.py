@@ -3,6 +3,8 @@ Generator node - creates final answer from context
 """
 from agents.state import AgentState
 from llm_client import create_llm_client
+from config.settings import settings
+from services.evaluation_service import get_evaluation_service
 import json
 
 # Import observe decorator
@@ -27,10 +29,24 @@ def generate_answer(state: AgentState) -> AgentState:
     query = state["user_query"]
     query_type = state.get("query_type", "unknown")
     chat_history = state.get("chat_history", [])
-    trace = state.get("langfuse_trace")
+    trace_id = state.get("langfuse_trace_id")
 
     print(f"[Generator] Generating answer for: {query_type}")
     print(f"[Generator] Chat history length: {len(chat_history)}")
+
+    # Recreate trace from trace_id
+    trace = None
+    if trace_id:
+        from observability.langfuse_client import LangFuseClient
+        langfuse_client = LangFuseClient.get_client()
+        if langfuse_client:
+            # Get existing trace by ID
+            trace = langfuse_client.trace(id=trace_id)
+            print(f"[Generator] Trace restored: {trace_id}")
+        else:
+            print("[Generator] Langfuse client not available")
+    else:
+        print("[Generator] No trace_id in state")
 
     # Create span for generation step
     span = None
@@ -126,11 +142,16 @@ Please provide your answer based on the data:"""
         # Track LLM generation with Langfuse
         generation = None
         if span:
+            print("answer_generation span created")
             generation = span.generation(
                 name="answer_generation",
                 model="gpt-4o-mini",
                 input=messages
             )
+        else:
+            print(f"answer_generation span didn't created")
+
+        print(f"messages: {messages}")
 
         # Generate answer
         response = llm.invoke(messages)
@@ -138,6 +159,7 @@ Please provide your answer based on the data:"""
         # Track token usage and cost
         if generation and hasattr(response, 'response_metadata'):
             usage = response.response_metadata.get('token_usage', {})
+            print(f"usage: {usage}")
             if usage:
                 generation.end(
                     output=response.content,
@@ -147,6 +169,8 @@ Please provide your answer based on the data:"""
                         "total": usage.get('total_tokens', 0)
                     }
                 )
+        else:
+            print("generation has no attr response_metadata")
 
         state["answer"] = response.content
 

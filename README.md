@@ -1,5 +1,7 @@
 # RAG Finance Assistant - Complete Implementation Summary
 
+**[Demo video](https://drive.google.com/file/d/1GMQpI4IfFaW4LdxmHwXNGxBdpU7HqkRk/view?usp=sharing)**
+
 ## Core Idea
 
 Advanced RAG system for a financial SaaS service with support for:

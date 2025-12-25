@@ -46,5 +46,5 @@ class AgentState(MessagesState):
     cache_hit: bool  # Whether response was cached
     processing_time_ms: Optional[float]
 
-    # Langfuse trace (not serialized)
-    langfuse_trace: Optional[Any]  # Langfuse trace object for logging
+    # Langfuse trace ID (serializable)
+    langfuse_trace_id: Optional[str]  # Langfuse trace ID for logging

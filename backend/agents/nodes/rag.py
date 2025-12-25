@@ -31,7 +31,7 @@ def rag_retrieve(state: AgentState) -> AgentState:
     """
     RAG node: Search vector database for relevant documents
 
-    Updates state with retrieved_docs
+    Updates state with retrieved_docs and reranked_docs
     """
     query = state.get("rewritten_query") or state["user_query"]
 
@@ -39,12 +39,15 @@ def rag_retrieve(state: AgentState) -> AgentState:
 
     rag_service = get_rag_service()
 
-    # Search documents
-    docs = rag_service.search_documents(query, top_k=settings.rag.top_k)
+    # Search documents (with reranking if enabled)
+    docs = rag_service.search_documents(query, top_k=settings.rag.final_top_k)
 
+    # Store both retrieved and reranked docs
+    # If reranking is enabled, docs will already be reranked
     state["retrieved_docs"] = docs
+    state["reranked_docs"] = docs if settings.rag.rerank_enabled else []
 
-    print(f"[RAG] Retrieved {len(docs)} documents")
+    print(f"[RAG] Retrieved {len(docs)} documents (reranking={'enabled' if settings.rag.rerank_enabled else 'disabled'})")
 
     # Format sources
     sources = []
