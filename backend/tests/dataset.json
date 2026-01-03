@@ -1,0 +1,93 @@
+[
+  {
+    "question": "Under what conditions does the Dashboard show the 'No Data' state, and what specific actions are recommended to the user?",
+    "answer": "The 'No Data' state is shown when both income and expenses for the selected period equal zero. The system recommends importing bank statements or adding an operation manually.",
+    "contexts": [
+      "Display condition: Shown when income = 0 AND expenses = 0",
+      "Two action buttons: 'Import data' — navigate to /operations?tab=import; 'Add operation' — navigate to /operations",
+      "Card with centered content: Icon, Title 'No data for the selected period', Explanatory text"
+    ],
+    "ground_truth": "In the FinApp Dashboard, the 'No Data' state is triggered if income and expenses are both zero for the chosen timeframe. When this occurs, the user sees a centered card with a chart icon and recommendations. Two primary actions are provided: importing data (which redirects the user to the import tab in the operations section) or manually adding an operation (redirecting to the main operations page)."
+  },
+  {
+    "question": "What are the security requirements for setting up a password, and how can I further protect my account?",
+    "answer": "Passwords must be at least 8 characters long, including at least one uppercase letter, one lowercase letter, and one number. For extra security, you can enable Two-Factor Authentication (2FA) in the Security section.",
+    "contexts": [
+      "Password Validation: Length: minimum 8 characters, Capital letters: minimum 1, Lowercase letters: minimum 1, Numbers: at least 1",
+      "Security Card: 2FA and password sections vertically... In case of a 2FA on/off error, the status does not change",
+      "The Profile section provides the user with the ability to manage their personal data and account security settings."
+    ],
+    "ground_truth": "To ensure account security in FinApp, users must create a password that meets four criteria: a minimum length of 8 characters, at least one uppercase letter, one lowercase letter, and at least one numeric digit. Beyond the password, the 'Security' card within the Profile section allows users to manage account protection settings, specifically mentioning the ability to enable or disable Two-Factor Authentication (2FA)."
+  },
+  {
+    "question": "What types of business accounts can be added to the system, and what happens if an IBAN is missing?",
+    "answer": "You can add checking accounts, cash, and cards. If the account number (like an IBAN) is missing, the system displays '—'.",
+    "contexts": [
+      "Account Type: Displays the account type name (e.g., Checking account, Cash, Card)",
+      "Account Number: Displays the account number (IBAN, card number). If missing: '—'",
+      "Accounts — bank accounts, cash, cards"
+    ],
+    "ground_truth": "Within the 'Reference Data' section under 'Business Accounts', users can register different account types including Checking accounts, Cash, and Cards. Each account entry includes a 'Name', 'Account Number' (such as an IBAN or card number), 'Account Type', and 'Currency'. If the account number field is left empty, the table will display a dash ('—') as a placeholder."
+  },
+  {
+    "question": "How does FinApp handle transaction categorization and is there a way to automate this process?",
+    "answer": "Transactions can be categorized manually in the operations table or automatically via 'Rules'. Rules allow the system to categorize imports based on keywords in the description, like 'rent'.",
+    "contexts": [
+      "Rules: Automatic rules for categorizing imported transactions based on conditions (e.g., if the description contains 'rent', then category is 'Office rent').",
+      "The system automatically recognizes transactions and suggests rules for automatic categorization.",
+      "The section consists of three main tabs: Operations, Import, Rules"
+    ],
+    "ground_truth": "FinApp simplifies transaction management through categorization. Users can manually edit categories directly in the Operations table (inline editing). To reduce manual entry, the system uses 'Rules' located in the Operations section. These rules automatically assign categories to imported bank transactions based on predefined conditions, such as matching text strings (e.g., 'rent') in the transaction description."
+  },
+  {
+    "question": "What financial metrics are included in the Profit and Loss (P&L) report, and in what currency are they displayed?",
+    "answer": "The P&L report includes total revenues, cost of sales, gross profit, operating expenses, operating profit, other income/expenses, and net profit. All values are formatted in Kazakhstani tenge (₸).",
+    "contexts": [
+      "Calculated metrics: totalRevenues, totalCostOfSales, grossProfit, totalOperatingExpenses, operatingProfit, netProfit",
+      "Currency Formatting: Currency: ₸ (Kazakhstani tenge), Locale: ru-RU",
+      "P&L Report — analysis of revenues, expenses, and overall financial performance"
+    ],
+    "ground_truth": "The Profit and Loss (P&L) Report in FinApp provides a comprehensive breakdown of financial performance. It calculates and displays several key metrics: Total Revenues, Cost of Sales, Gross Profit, Operating Expenses, Operating Profit, and finally, Net Profit. All financial figures in these reports are formatted according to the 'formatCurrency' function, which uses the Kazakhstani tenge (₸) symbol and standard thousands separators."
+  },
+  {
+    "question": "What is the difference between the Cash Flow and P&L reports in FinApp, and when should I use each?",
+    "answer": "The Cash Flow Statement tracks actual money movement (inflows/outflows), while the Profit and Loss (P&L) report analyzes business profitability by comparing revenue and expenses, including cost of sales and operating profits.",
+    "contexts": [
+      "Cash Flow Statement — analysis of cash inflows and outflows",
+      "Profit and Loss (P&L) Report — analysis of revenues, expenses, and overall financial performance",
+      "Cash Flow Report: Analysis of cash inflows and outflows... drill-down to transaction list.",
+      "P&L structure: Revenue, Cost of goods sold, Gross profit, Operating expenses, Operating profit, Net profit."
+    ],
+    "ground_truth": "In FinApp, the Cash Flow Statement is used to monitor the liquidity of the business, showing where money comes from and where it goes across accounts, categories, and business lines. In contrast, the Profit and Loss (P&L) report is designed to show the actual financial performance and profitability. The P&L report breaks down data into Revenue, Cost of Sales, Gross Profit, and Operating Expenses to arrive at Net Profit, helping entrepreneurs understand if their business model is sustainable beyond just cash movements."
+  },
+  {
+    "question": "What are the mobile-specific UI changes for the Dashboard metrics and charts?",
+    "answer": "On mobile (under 480px), the dashboard uses reduced spacing, smaller font sizes for metrics (xl instead of 3xl), and displays cards and charts in a full-width single column.",
+    "contexts": [
+      "Mobile (< 480px): Reduced spacing (var(--space-3)), Smaller font sizes. Metrics: var(--font-size-xl) instead of var(--font-size-3xl).",
+      "Metrics Grid: On mobile: 1 column",
+      "Charts: Full-width cards, Adaptive chart size"
+    ],
+    "ground_truth": "The FinApp Dashboard is fully responsive. For mobile devices with screens smaller than 480px, the layout shifts from a 3-column grid to a single-column layout where metrics cards and charts take up the full width. Additionally, the UI optimizes for smaller screens by reducing internal spacing (space-3) and decreasing the font size of metric values from 3xl to xl."
+  },
+  {
+    "question": "I just registered. What are the first steps I should take to see my financial analytics?",
+    "answer": "You should register your workspace, set up your business accounts and categories in the 'Directories' section, and then upload your data either manually or by importing bank statements.",
+    "contexts": [
+      "Step 1: Register and create a workspace. Go to the “Organization” section... Fill in your business information.",
+      "Step 2: Set up directories. Before working with transactions, configure the basic directories... Business accounts, Transaction categories.",
+      "Step 3: Upload data. Now the most important part — fill the system with your financial data. Method 1: Import bank statements (Recommended)."
+    ],
+    "ground_truth": "To begin using FinApp, users must follow a 'Quick Start' process: 1. Create a workspace in the 'Organization' section. 2. Configure directories (References) by adding bank accounts (with IBAN), cash desks, and transaction categories (Income/Expense). 3. Upload financial data, preferably by downloading Excel/PDF statements from banks like Kaspi or Halyk and importing them into the 'Transactions' tab. Once data is categorized, the Dashboard and Reports will automatically populate with analytics."
+  },
+  {
+    "question": "What is the cost of using FinApp after the trial period, and in what format can I export my data?",
+    "answer": "After a 30-day free trial, plans start from 5,000 KZT/month. You can export your data to Excel at any time.",
+    "contexts": [
+      "Q: How much does FinApp cost? A: 30-day free trial. After that, plans start from 5,000 KZT/month.",
+      "Q: Can I export all data? A: Yes, anytime to Excel.",
+      "Report Export: For P&L: Format: Excel"
+    ],
+    "ground_truth": "FinApp offers a 30-day free trial for new users to explore the system. Once the trial expires, the subscription cost begins at 5,000 KZT per month. Regardless of the subscription status, FinApp allows users to export their financial data and reports (like the P&L) into Excel format for external analysis or record-keeping."
+  }
+]

@@ -6,11 +6,7 @@ from langgraph.types import CachePolicy
 from langgraph.cache.memory import InMemoryCache
 from agents.state import AgentState
 from agents.nodes.router import route_query, route_decision
-from agents.nodes.rag import rag_retrieve
-from agents.nodes.tools import call_tools
-from agents.nodes.generator import generate_answer
 from observability.langfuse_client import LangFuseClient
-from config.settings import settings
 from services.redis_checkpointer import get_checkpointer
 
 import time
@@ -117,7 +113,7 @@ def make_cacheable_node(node_func):
     return wrapped
 
 
-def create_rag_graph() -> StateGraph:
+def create_rag_graph(settings, rag_service, memory_service) -> StateGraph:
     r"""
     Create the RAG workflow graph
 
@@ -138,6 +134,16 @@ def create_rag_graph() -> StateGraph:
     """
     # Create graph
     workflow = StateGraph(AgentState)
+
+    # Import node functions
+    from agents.nodes.router import route_query, route_decision
+    from agents.nodes.rag import create_rag_retrieve_node
+    from agents.nodes.tools import call_tools
+    from agents.nodes.generator import create_generate_answer_node
+
+    # Create node functions with injected dependencies
+    rag_retrieve = create_rag_retrieve_node(rag_service)
+    generate_answer = create_generate_answer_node(rag_service)
 
     # Add nodes with cache policies for performance optimization
     # Wrap nodes to clean unpicklable objects before caching
@@ -207,6 +213,7 @@ def create_rag_graph() -> StateGraph:
     # Get checkpointer for state persistence (Redis or Memory)
     checkpointer = None
     if settings.redis.checkpoint_enabled:
+        from services.redis_checkpointer import get_checkpointer
         checkpointer = get_checkpointer()
         if checkpointer:
             checkpointer_type = settings.redis.checkpointer_type.upper()
@@ -235,20 +242,14 @@ def create_rag_graph() -> StateGraph:
     return graph
 
 
-# Global graph instance
-_graph = None
-
-
-def get_rag_graph():
-    """Get or create RAG graph"""
-    global _graph
-    if _graph is None:
-        _graph = create_rag_graph()
-        print("✓ RAG graph compiled")
-    return _graph
-
-
-def process_query(user_query: str, user_id: str = None, session_id: str = None) -> dict:
+def process_query(
+    graph,
+    memory_service,
+    settings,
+    user_query: str,
+    user_id: str = None,
+    session_id: str = None
+) -> dict:
     """
     Process a user query through the RAG graph
 
@@ -284,9 +285,7 @@ def process_query(user_query: str, user_id: str = None, session_id: str = None) 
     if not session_id:
         session_id = f"session_{user_id}"
 
-    # Load chat history from Redis
-    from services.memory_service import get_memory_service
-    memory_service = get_memory_service()
+    # Load chat history from memory service
     chat_history = memory_service.get_messages_for_llm(session_id, limit=10)
 
     # Save user message to history
@@ -313,9 +312,6 @@ def process_query(user_query: str, user_id: str = None, session_id: str = None) 
         messages=[],
         langfuse_trace_id=trace_id  # Pass trace ID to nodes (serializable)
     )
-
-    # Get graph
-    graph = get_rag_graph()
 
     try:
         # Run graph with checkpointing support
@@ -354,11 +350,15 @@ def process_query(user_query: str, user_id: str = None, session_id: str = None) 
             "routing_reason": final_state.get("routing_reason"),
             "processing_time_ms": processing_time,
             "session_id": session_id,
+            # Debug fields for evaluation/testing
+            "retrieved_docs": final_state.get("retrieved_docs", []),
+            "reranked_docs": final_state.get("reranked_docs", []),
+            "rewritten_query": final_state.get("rewritten_query"),
         }
 
         print(f"✓ Query processed in {processing_time:.2f}ms")
 
-        # Update Langfuse trace with result and add quality scores
+        # Update Langfuse trace with result
         if trace:
             try:
                 trace.update(
@@ -370,46 +370,7 @@ def process_query(user_query: str, user_id: str = None, session_id: str = None) 
                     }
                 )
 
-                # Add quality scores using evaluation service
-                from services.evaluation_service import get_evaluation_service
-                eval_service = get_evaluation_service()
-
-                # 1. Relevance: how well the answer addresses the query
-                relevance_score = eval_service.evaluate_relevance(
-                    query=user_query,
-                    answer=answer
-                )
-                trace.score(
-                    name="relevance",
-                    value=relevance_score,
-                    comment="LLM-as-judge evaluation of answer relevance"
-                )
-
-                # 2. Context precision: quality of retrieved documents (for documentation queries)
-                if final_state.get("query_type") == "documentation" and final_state.get("retrieved_docs"):
-                    precision_score, precision_comment = eval_service.evaluate_context_precision(
-                        query=user_query,
-                        retrieved_docs=final_state.get("retrieved_docs", [])
-                    )
-                    trace.score(
-                        name="context_precision",
-                        value=precision_score,
-                        comment=precision_comment
-                    )
-
-                    # 2b. Recall: whether all necessary information was retrieved
-                    recall_score, recall_comment = eval_service.evaluate_recall(
-                        query=user_query,
-                        answer=answer,
-                        retrieved_docs=final_state.get("retrieved_docs", [])
-                    )
-                    trace.score(
-                        name="recall",
-                        value=recall_score,
-                        comment=recall_comment
-                    )
-
-                # 3. Response time score (faster is better)
+                # Response time score (faster is better)
                 latency_score = 1.0 if processing_time < 3000 else 0.7 if processing_time < 5000 else 0.5
                 trace.score(
                     name="response_time",

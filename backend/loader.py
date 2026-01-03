@@ -6,8 +6,10 @@ import time
 from weaviate.classes.config import Configure, Property, DataType
 from sentence_transformers import SentenceTransformer
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_experimental.text_splitter import SemanticChunker
+from langchain_huggingface import HuggingFaceEmbeddings
 from pathlib import Path
-from db_client import connect_weaviate
+from infra.weaviate_client import WeaviateClient
 from config.settings import settings
 
 # Конфигурация
@@ -20,13 +22,17 @@ def wait_for_weaviate(max_retries=30):
     print("Ожидание запуска Weaviate...")
     for i in range(max_retries):
         try:
-            client = connect_weaviate()
+            weaviate_client = WeaviateClient(
+                url=settings.weaviate.url,
+                collection_name=settings.weaviate.collection_name
+            )
+            weaviate_client.connect()
 
-            if client.is_ready():
+            if weaviate_client.client.is_ready():
                 print("✓ Weaviate готов к работе")
-                client.close()
+                weaviate_client.close()
                 return True
-            client.close()
+            weaviate_client.close()
         except Exception as e:
             print(f"Попытка {i+1}/{max_retries}: Weaviate еще не готов - {e}")
             time.sleep(2)
@@ -68,6 +74,47 @@ def get_embedding(text: str, embedding_model) -> list[float]:
         print(f"✗ Ошибка создания эмбеддинга: {e}")
         return None
 
+def create_text_splitter():
+    """
+    Создание text splitter на основе конфигурации
+
+    Returns:
+        Text splitter (RecursiveCharacterTextSplitter или SemanticChunker)
+    """
+    chunking_method = settings.chunking.method.lower()
+
+    if chunking_method == "semantic":
+        print(f"Using SemanticChunker (breakpoint_type={settings.chunking.semantic_breakpoint_type}, threshold={settings.chunking.semantic_breakpoint_threshold})")
+
+        # Создание HuggingFace embeddings для SemanticChunker
+        # Используем ту же модель, что и для основной системы
+        embeddings = HuggingFaceEmbeddings(
+            model_name=settings.embedding.model,
+            model_kwargs={'device': 'cpu'},
+            encode_kwargs={'normalize_embeddings': True}
+        )
+
+        # Создание SemanticChunker с настройками из конфига
+        text_splitter = SemanticChunker(
+            embeddings=embeddings,
+            breakpoint_threshold_type=settings.chunking.semantic_breakpoint_type,
+            breakpoint_threshold_amount=settings.chunking.semantic_breakpoint_threshold
+        )
+
+        return text_splitter
+
+    else:
+        # По умолчанию используем RecursiveCharacterTextSplitter
+        print(f"Using RecursiveCharacterTextSplitter (chunk_size={settings.chunking.chunk_size}, chunk_overlap={settings.chunking.chunk_overlap})")
+
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=settings.chunking.chunk_size,
+            chunk_overlap=settings.chunking.chunk_overlap,
+            length_function=len,
+        )
+
+        return text_splitter
+
 def load_documents():
     """Загрузка и индексация документов из папки data/"""
 
@@ -76,11 +123,16 @@ def load_documents():
         return False
 
     # Подключение к Weaviate
-    client = connect_weaviate()
+    weaviate_client = WeaviateClient(
+        url=settings.weaviate.url,
+        collection_name=settings.weaviate.collection_name
+    )
+    weaviate_client.connect()
+    client = weaviate_client.client
 
     # Создание схемы
     if not create_schema(client):
-        client.close()
+        weaviate_client.close()
         return False
 
     # Инициализация локальной модели эмбеддингов
@@ -103,13 +155,8 @@ def load_documents():
         documentation = client.collections.get("Documentation")
         print("✓ Коллекция очищена")
     
-    # Инициализация текстового сплиттера
-    print(f"Using RecursiveCharacterTextSplitter (chunk_size={settings.chunking.chunk_size}, chunk_overlap={settings.chunking.chunk_overlap})")
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=settings.chunking.chunk_size,
-        chunk_overlap=settings.chunking.chunk_overlap,
-        length_function=len,
-    )
+    # Инициализация текстового сплиттера на основе конфигурации
+    text_splitter = create_text_splitter()
     
     # Проверка наличия файлов
     data_path = Path(DATA_DIR)
@@ -176,8 +223,8 @@ def load_documents():
             print(f"  ✗ Ошибка обработки файла {md_file.name}: {e}")
     
     print(f"\n✓ Индексация завершена: {total_chunks} чанков из {len(md_files)} файлов")
-    
-    client.close()
+
+    weaviate_client.close()
     return True
 
 if __name__ == "__main__":

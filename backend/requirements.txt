@@ -10,9 +10,15 @@ langchain-text-splitters==1.1.0
 langchain-openai==1.1.6
 langgraph==1.0.5
 langchain-community==0.4.1
+langchain-experimental==0.4.1
+langchain-huggingface==1.2.0
 
 # Observability
 langfuse==2.60.10
+
+# Evaluation
+ragas>=0.4.2
+datasets>=2.14.0
 
 # Embeddings
 sentence-transformers==3.0.0
@@ -28,3 +34,8 @@ cohere>=5.0.0
 
 # Utilities
 pydantic>=2.0.0
+requests>=2.31.0
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.0

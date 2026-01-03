@@ -1,21 +1,44 @@
 """
 Reranker Service - re-ranks retrieved documents using FlashRank or Cohere
+Clean service - no env reading, all configuration passed via constructor
 """
 from typing import List, Dict, Any, Optional
-from config.settings import settings
 import os
 
 
 class RerankerService:
     """Service for re-ranking retrieved documents"""
 
-    def __init__(self):
-        """Initialize the reranker (lazy loading)"""
-        print("[RerankerService] __init__ called - creating new instance")
+    def __init__(
+        self,
+        reranker_type: str = "flashrank",
+        rerank_enabled: bool = True,
+        cohere_api_key: Optional[str] = None,
+        cohere_rerank_model: str = "rerank-english-v3.0",
+        flashrank_cache_dir: str = "/app/.cache/flashrank",
+        final_top_k: int = 7
+    ):
+        """
+        Initialize the reranker service
+
+        Args:
+            reranker_type: Type of reranker ("flashrank" or "cohere")
+            rerank_enabled: Whether reranking is enabled
+            cohere_api_key: Cohere API key (required if reranker_type="cohere")
+            cohere_rerank_model: Cohere rerank model name
+            flashrank_cache_dir: Cache directory for FlashRank models
+            final_top_k: Default number of documents to return after reranking
+        """
+        self._reranker_type = reranker_type
+        self._rerank_enabled = rerank_enabled
+        self._cohere_api_key = cohere_api_key
+        self._cohere_rerank_model = cohere_rerank_model
+        self._flashrank_cache_dir = flashrank_cache_dir
+        self._final_top_k = final_top_k
+
         self._ranker = None
         self._RerankRequest = None
         self._initialized = False
-        self._reranker_type = settings.rag.reranker_type
 
     def _ensure_ranker(self):
         """Lazy initialization of the ranker"""
@@ -24,8 +47,8 @@ class RerankerService:
 
         self._initialized = True
 
-        if not settings.rag.rerank_enabled:
-            print("[RerankerService] Reranking is disabled in settings")
+        if not self._rerank_enabled:
+            print("[RerankerService] Reranking is disabled")
             return
 
         if self._reranker_type == "cohere":
@@ -41,14 +64,13 @@ class RerankerService:
         try:
             import cohere
 
-            api_key = settings.rag.cohere_api_key
-            if not api_key:
+            if not self._cohere_api_key:
                 print("⚠ COHERE_API_KEY not set, falling back to FlashRank")
                 self._init_flashrank_ranker()
                 return
 
-            self._ranker = cohere.Client(api_key)
-            print(f"✓ Cohere reranker initialized with model: {settings.rag.cohere_rerank_model}")
+            self._ranker = cohere.Client(self._cohere_api_key)
+            print(f"✓ Cohere reranker initialized with model: {self._cohere_rerank_model}")
         except ImportError as e:
             print(f"⚠ Cohere not available, falling back to FlashRank: {e}")
             self._init_flashrank_ranker()
@@ -61,12 +83,11 @@ class RerankerService:
         try:
             from flashrank import Ranker, RerankRequest
 
-            # Use persistent cache directory
-            cache_dir = os.getenv("FLASHRANK_CACHE_DIR", "/app/.cache/flashrank")
-            os.makedirs(cache_dir, exist_ok=True)
+            # Create cache directory
+            os.makedirs(self._flashrank_cache_dir, exist_ok=True)
 
-            print(f"[RerankerService] Initializing FlashRank Ranker with cache_dir={cache_dir}")
-            self._ranker = Ranker(model_name="ms-marco-MiniLM-L-12-v2", cache_dir=cache_dir)
+            print(f"[RerankerService] Initializing FlashRank with cache_dir={self._flashrank_cache_dir}")
+            self._ranker = Ranker(model_name="ms-marco-MiniLM-L-12-v2", cache_dir=self._flashrank_cache_dir)
             self._RerankRequest = RerankRequest
             self._reranker_type = "flashrank"
             print("✓ FlashRank reranker initialized")
@@ -101,7 +122,7 @@ class RerankerService:
         Args:
             query: User query
             documents: List of documents from vector search
-            top_k: Number of top documents to return (default: settings.rag.final_top_k)
+            top_k: Number of top documents to return (default: final_top_k from constructor)
 
         Returns:
             List of re-ranked documents
@@ -110,7 +131,7 @@ class RerankerService:
             return documents[:top_k] if top_k else documents
 
         if top_k is None:
-            top_k = settings.rag.final_top_k
+            top_k = self._final_top_k
 
         try:
             if self._reranker_type == "cohere":
@@ -137,7 +158,7 @@ class RerankerService:
             query=query,
             documents=doc_texts,
             top_n=top_k,
-            model=settings.rag.cohere_rerank_model
+            model=self._cohere_rerank_model
         )
 
         # Map results back to original documents
@@ -191,15 +212,3 @@ class RerankerService:
         print(f"[Reranker:FlashRank] Re-ranked {len(documents)} → {len(reranked_docs)} documents")
 
         return reranked_docs
-
-
-# Global instance
-_reranker_service: Optional[RerankerService] = None
-
-
-def get_reranker_service() -> RerankerService:
-    """Get or create the global reranker service instance"""
-    global _reranker_service
-    if _reranker_service is None:
-        _reranker_service = RerankerService()
-    return _reranker_service

@@ -1,379 +1,545 @@
-# Functional requirements: Reports section
+# Functional Requirements: "Reports" Section
 
-## 1. General purpose
+## 1. General Purpose
 
-The Reports section provides users with tools to analyze an organization's financial data through two main reports.:
-- **Cash Flow Statement (DDS)** - analysis of cash receipts and expenditures
-- **Income Statement (OPI)** - analysis of income, expenses and financial performance
+The **Reports** section provides users with tools to analyze an organization’s financial data through two main reports:
 
-##2. Section Structure
+* **Cash Flow Statement** — analysis of cash inflows and outflows
+* **Profit and Loss (P&L) Report** — analysis of revenues, expenses, and overall financial performance
 
-The section is accessible via the "Reports" drop-down menu in the sidebar with two subsections.:
-- DDS report (/reports/cashflow)
-- OPiU report (/reports/profit-loss)
+## 2. Section Structure
+
+The section is доступен via the **Reports** dropdown in the sidebar and includes two subsections:
+
+* Cash Flow Report (`/reports/cashflow`)
+* Profit & Loss Report (`/reports/profit-loss`)
 
 ---
 
-# PART 1: CASH FLOW STATEMENT (DDS)
+# PART 1: CASH FLOW REPORT
 
-## 3. General structure of the DDS report
+## 3. Overall Structure of the Cash Flow Report
 
-### 3.1 Page Title
+### 3.1 Page Header
 
 **Elements**
-- Main title: "Cash Flow Statement"
-- Subtitle: "Cash flow and expenditure analysis"
-- Stylization: large font, bold
+
+* Main title: **“Cash Flow Statement”**
+* Subtitle: **“Analysis of cash inflows and outflows”**
+* Styling: large font, bold weight
 
 ### 3.2 Report Control Panel
 
-**Location**
-- Horizontal panel with controls
-- All elements in one row (n-flex)
-- Adaptive location on mobile devices
+**Layout**
 
-**Control Panel elements:**
+* Horizontal toolbar with controls
+* All elements in a single row (n-flex)
+* Responsive layout on mobile devices
+
+**Control elements:**
 
 1. **Period selector**
-   - A drop-down list with preset periods:
-     - For the current month
-     - For 3 months
-     - For half a year
-     - For the year
-     - For any period
-- Width: 200px
-   - When selected, the data is automatically loaded
 
-2. **Arbitrary period selection**
-- Appears only when selecting "For any period"
-- The date picker component with the "daterange" type
-- Allows you to select the start and end date
-   - When the data is changed, it is automatically updated
+   * Dropdown with preset periods:
 
-3. **Grouping by period**
-- Drop-down list with options:
-     - By day
-     - By week
-     - By month
-     - By block
-     - By year
-   - Width: 200px
-   - Defines how the data will be grouped in columns
+     * Current month
+     * Last 3 months
+     * Last 6 months
+     * Last year
+     * Custom period
+   * Width: 200px
+   * Automatically reloads data on change
 
-4. **Increment display switch**
-- Trend icon button (TrendingUpSharp)
-- Type: primary when active, default when inactive
-   - Hint: "Show increment"
-- Switches the percentage change display between periods
+2. **Custom period selector**
+
+   * Shown only when **Custom period** is selected
+   * Date picker with `daterange` type
+   * Allows selecting start and end dates
+   * Automatically refreshes data on change
+
+3. **Period grouping**
+
+   * Dropdown with options:
+
+     * By days
+     * By weeks
+     * By months
+     * By quarters
+     * By years
+   * Width: 200px
+   * Defines how data is grouped into columns
+
+4. **Growth display toggle**
+
+   * Button with trend icon (`TrendingUpSharp`)
+   * Type: `primary` when active, `default` when inactive
+   * Tooltip: “Show growth”
+   * Toggles percentage change between periods
 
 5. **Export button**
-- Download icon button (DownloadOutline)
-   - Exports the current report
 
-6. **Switch to full-screen mode**
-   - A button with a dynamic icon
-- The "expand" icon in the normal mode
-   - Collapse icon in fullscreen mode
-- Type: primary when active, default when inactive
+   * Button with download icon (`DownloadOutline`)
+   * Exports the current report view
 
-### 3.3 Grouping data
+6. **Fullscreen toggle**
 
-**Radio group for selecting the grouping type:**
-- By articles (category) - by default
-- By directions (direction)
-- By accounts (account)
-- By counterparty
-- By type of activity (activity_type)
+   * Button with dynamic icon
+   * “Expand” icon in normal mode
+   * “Collapse” icon in fullscreen mode
+   * Type: `primary` when active, `default` when inactive
+
+### 3.3 Data Grouping
+
+**Radio group for grouping type:**
+
+* By categories (`category`) — default
+* By directions (`direction`)
+* By accounts (`account`)
+* By counterparties (`counterparty`)
+* By activity types (`activity_type`)
 
 **Style**
-- Radio buttons in a horizontal row
-- The active option is highlighted in color
 
-## 4. DDS Data Tables
-
-### 4.1 Table by articles (CashFlowByCategoryTable)
-
-**Displayed when:** groupBy === 'category'
-
-**Input parameters:**
-- data - report data
-- categories - list of operation items
-- accounts - list of accounts
-- periodGroupBy - type of grouping by period
-- showGrowth - whether to show an increase
-- loading - loading indicator
-
-**Structure:**
-- Grouping by items of operations
-- Columns with periods (depend on periodGroupBy)
-- Totals by items
-- The ability to drill-down to the list of transactions
-
-### 4.2 Referral Table (CashFlowByDirectionTable)
-
-**Displayed when:** groupBy === 'direction'
-
-**Input parameters:**
-- data - report data
-- directions - list of directions
-- periodGroupBy - type of grouping by period
-- showGrowth - whether to show an increase
-- loading - loading indicator
-
-**Structure:**
-- Grouping by business lines
-- Columns with periods
-- Totals by destination
-
-### 4.3 Account Table (CashFlowByAccountTable)
-
-**Displayed when:** groupBy === 'account'
-
-**Input parameters:**
-- data - report data
-- accounts - list of accounts
-- periodGroupBy - type of grouping by period
-- showGrowth - whether to show an increase
-- loading - loading indicator
-
-**Structure:**
-- Grouping by organization accounts
-- Balances at the beginning and end of the period
-- Income and expenses by period
-
-### 4.4 Counterparty Table (CashFlowByCounterpartyTable)
-
-**Displayed when:** groupBy === 'counterparty'
-
-**Input parameters:**
-- data - report data
-- counterparties - list of counterparties
-- periodGroupBy - type of grouping by period
-- showGrowth - whether to show an increase
-- loading - loading indicator
-
-**Structure:**
-- Grouping by counterparties
-- Amounts of transactions with each counterparty by period
-
-### 4.5 Table by type of activity (CashFlowByActivityTypeTable)
-
-**Displayed when:** groupBy === 'activity_type'
-
-**Input parameters:**
-- data - report data
-- activityTypes - list of activities
-- categories - list of articles
-- periodGroupBy - type of grouping by period
-- showGrowth - whether to show an increase
-- loading - loading indicator
-
-**Structure:**
-- Grouping by type of activity (operational, investment, financial)
-- Details by articles within each type
-- Results by type of activity
-
-## 5. Functionality of the DDS report
-
-### 5.1 Drill-down to transactions
-
-**Purpose**
-- Ability to switch from aggregated data to a list of operations
-- Clicking on a table cell opens a detailed view
-
-**Implementation**
-- The TransactionListModal modal window opens
-- All transactions that make up a given amount are shown
-- Filtering by selected period, article/direction/account/counterparty
-
-### 5.2 Full-screen mode
-
-**Activation**
-- Click on the fullscreen mode button
-- The isf fullscreen variable is toggled
-
-**Changes to the UI**
-- The card gets the 'fullscreen-card' class
-- Takes up the entire available screen
-- Improved visibility for large tables
-
-### 5.3 Exporting the report
-
-**Export format**
-- Excel (XLSX)
-- Saves the current report view
-- Takes into account all applied filters and dimensions
-
-**The process**
-- Click on the export button
-- File generation on the server
-- Automatic download
-
-## 6. Loading and displaying DDS data
-
-### 6.1 Download Status
-
-**Loading indicator (isLoading)**
-- Displayed during data acquisition
-- Passed to the components of the tables
-- Blocks interaction with the table
-
-### 6.2 Data processing
-
-**Data source**
-- endpoint API for uploading report data
-- Query parameters:
-- Period (selectedPeriod, dateRange)
-- Type of grouping (groupBy)
-- Frequency (periodGroupBy)
-
-**Data storage**
-- ReportData - the main data of the report
-- Directories (categories, directions, accounts, partnerships, activityTypes)
-- Metadata of periods
+* Radio buttons in a horizontal row
+* Active option highlighted
 
 ---
 
-# PART 2: INCOME STATEMENT (OPI)
+## 4. Cash Flow Data Tables
 
-## 7. The general structure of the OPI report
+### 4.1 By Category Table (`CashFlowByCategoryTable`)
 
-### 7.1 Page Title
+**Shown when:** `groupBy === 'category'`
+
+**Inputs:**
+
+* `data` — report data
+* `categories` — list of transaction categories
+* `accounts` — list of accounts
+* `periodGroupBy` — period grouping type
+* `showGrowth` — whether to show growth
+* `loading` — loading indicator
+
+**Structure:**
+
+* Grouped by transaction categories
+* Columns by periods (depending on `periodGroupBy`)
+* Totals per category
+* Drill-down to transaction list
+
+### 4.2 By Direction Table (`CashFlowByDirectionTable`)
+
+**Shown when:** `groupBy === 'direction'`
+
+**Inputs:**
+
+* `data`
+* `directions` — list of business directions
+* `periodGroupBy`
+* `showGrowth`
+* `loading`
+
+**Structure:**
+
+* Grouped by business directions
+* Period columns
+* Totals per direction
+
+### 4.3 By Account Table (`CashFlowByAccountTable`)
+
+**Shown when:** `groupBy === 'account'`
+
+**Inputs:**
+
+* `data`
+* `accounts` — list of accounts
+* `periodGroupBy`
+* `showGrowth`
+* `loading`
+
+**Structure:**
+
+* Grouped by organization accounts
+* Opening and closing balances
+* Inflows and outflows by period
+
+### 4.4 By Counterparty Table (`CashFlowByCounterpartyTable`)
+
+**Shown when:** `groupBy === 'counterparty'`
+
+**Inputs:**
+
+* `data`
+* `counterparties` — list of counterparties
+* `periodGroupBy`
+* `showGrowth`
+* `loading`
+
+**Structure:**
+
+* Grouped by counterparties
+* Transaction amounts with each counterparty by period
+
+### 4.5 By Activity Type Table (`CashFlowByActivityTypeTable`)
+
+**Shown when:** `groupBy === 'activity_type'`
+
+**Inputs:**
+
+* `data`
+* `activityTypes` — list of activity types
+* `categories` — list of categories
+* `periodGroupBy`
+* `showGrowth`
+* `loading`
+
+**Structure:**
+
+* Grouped by activity types (operating, investing, financing)
+* Breakdown by categories within each type
+* Totals per activity type
+
+---
+
+## 5. Cash Flow Report Functionality
+
+### 5.1 Drill-down to Transactions
+
+**Purpose**
+
+* Navigate from aggregated data to transaction details
+* Clicking a table cell opens a detailed view
+
+**Implementation**
+
+* Opens `TransactionListModal`
+* Shows all transactions contributing to the selected amount
+* Filtered by selected period and category/direction/account/counterparty
+
+### 5.2 Fullscreen Mode
+
+**Activation**
+
+* Click the fullscreen button
+* Toggles `isFullScreen`
+
+**UI Changes**
+
+* Card gets `fullscreen-card` class
+* Occupies full available screen
+* Improved visibility for large tables
+
+### 5.3 Report Export
+
+**Export format**
+
+* Excel (XLSX)
+* Preserves the current report view
+* Respects all applied filters and groupings
+
+**Process**
+
+* Click export button
+* File generation on the server
+* Automatic download
+
+---
+
+## 6. Cash Flow Data Loading and Display
+
+### 6.1 Loading States
+
+**Loading indicator (`isLoading`)**
+
+* Shown while data is being fetched
+* Passed to table components
+* Blocks interaction with the table
+
+### 6.2 Data Handling
+
+**Data source**
+
+* API endpoint for report data
+* Request parameters:
+
+  * Period (`selectedPeriod`, `dateRange`)
+  * Grouping type (`groupBy`)
+  * Period granularity (`periodGroupBy`)
+
+**Data storage**
+
+* `reportData` — main report data
+* Reference lists (`categories`, `directions`, `accounts`, `counterparties`, `activityTypes`)
+* Period metadata
+
+---
+
+# PART 2: PROFIT & LOSS (P&L) REPORT
+
+## 7. Overall Structure of the P&L Report
+
+### 7.1 Page Header
 
 **Elements**
-- Main heading: "Income Statement (OPI)"
-- Subtitle: "Analysis of income, expenses and financial performance"
+
+* Main title: **“Profit and Loss (P&L) Report”**
+* Subtitle: **“Analysis of revenues, expenses, and financial performance”**
 
 ### 7.2 Control Panel
 
 **Controls:**
 
 1. **Period selector**
-- Current month
-   - Last month
-   - Current quarter
-   - The current year
-is an arbitrary period
-   - When the data is changed, it is automatically reloaded
 
-2. **Any period**
-   - Two date fields (DateFrom, DateTo)
-- Separator "—"
-- Appears only when "Any period" is selected
+   * Current month
+   * Previous month
+   * Current quarter
+   * Current year
+   * Custom period
+   * Automatically reloads data on change
+
+2. **Custom period**
+
+   * Two `date` fields (`dateFrom`, `dateTo`)
+   * Separator “—”
+   * Shown only when **Custom period** is selected
 
 3. **Export button**
-- Download icon
-   - Text "Export"
-- Style: btn btn-secondary
 
-## 8. Key indicators of OPI
+   * Download icon
+   * Text: **“Export”**
+   * Style: `btn btn-secondary`
 
-### 8.1 Key Indicators Card
+---
+
+## 8. Key P&L Indicators
+
+### 8.1 Summary Card
 
 **Display**
-- A card with the heading "Key indicators"
-- A grid of 4 indicators
 
-**Indicators:**
+* Card titled **“Key Metrics”**
+* Grid of 4 indicators
+
+**Metrics:**
 
 1. **Revenue**
-   - Total amount of income
-   - Always a positive value (green)
 
-2. **Gross profit**
-   - Revenue minus Cost
-   - Dynamic color (green if >= 0, red if < 0)
+   * Total income
+   * Always positive (green)
+
+2. **Gross Profit**
+
+   * Revenue minus Cost of Sales
+   * Dynamic color (green if ≥ 0, red if < 0)
 
 3. **Operating Profit**
-- Gross profit minus Operating Expenses
-- Dynamic color
 
-4. **Net profit**
-- The final financial result
-   - Dynamic color
+   * Gross profit minus Operating expenses
+   * Dynamic color
 
-**Stylization**
-- summary-label - the name of the indicator
-- summary-amount - indicator value
-- Positive/negative classes for color selection
+4. **Net Profit**
 
-## 9. Detailed OPiU Report
+   * Final financial result
+   * Dynamic color
+
+**Styling**
+
+* `summary-label` — metric name
+* `summary-amount` — metric value
+* `positive` / `negative` classes for color
+
+---
+
+## 9. Detailed P&L Report
 
 ### 9.1 Report Structure
 
-**Report sections (sequentially):**
+**Report sections (in order):**
 
-1. **INCOME**
-   - List of income items
-   - The amount for each item (green)
-   - The "Total income" subtotal
+1. **REVENUE**
 
-2. **COST**
-- List of cost items
-   - The amount for each item (red)
-- The "Total cost" subtotal
+   * List of revenue categories
+   * Amount per category (green)
+   * Subtotal: **“Total revenue”**
 
-3. **GROSS PROFIT** (highlighted section)
-- Calculation: Income - Cost
-   - Large font, background highlighting
-- Dynamic color
+2. **COST OF SALES**
+
+   * List of cost of sales categories
+   * Amount per category (red)
+   * Subtotal: **“Total cost of sales”**
+
+3. **GROSS PROFIT** (highlighted)
+
+   * Calculation: Revenue − Cost of Sales
+   * Large font, highlighted background
+   * Dynamic color
 
 4. **OPERATING EXPENSES**
-   - List of operating expenses
-   - The amount for each item (red)
-- The "Total operating expenses" subtotal
 
-5. **OPERATING PROFIT** (highlighted section)
-- Calculation: Gross profit - Operating expenses
-- Large font, background highlighting
-   - Dynamic color
+   * List of operating expense categories
+   * Amount per category (red)
+   * Subtotal: **“Total operating expenses”**
+
+5. **OPERATING PROFIT** (highlighted)
+
+   * Calculation: Gross profit − Operating expenses
+   * Large font, highlighted background
+   * Dynamic color
 
 6. **OTHER INCOME AND EXPENSES**
-   - Mixed list (income and expenses)
-   - Dynamic color for each position
-   - A subtotal with the total value
+
+   * Mixed list (income and expenses)
+   * Dynamic color per line
+   * Subtotal with net value
 
 7. **NET PROFIT** (final section)
-- Final calculation
-- Maximum allocation
-   - Dynamic color
 
-### 9.2 Displaying report lines
+   * Final calculation
+   * Maximum emphasis
+   * Dynamic color
 
-**Row structure:**
-- report-row - regular row
-- report-row subtotal - row of the subtotal
-- report-row total - total row
+### 9.2 Report Row Display
 
-**Line content:**
-- report-description - description (title of the article)
-- report-amount - amount
-  - positive - green color
-  - negative - red color
+**Row types:**
 
-### 9.3 Highlighted sections
+* `report-row` — regular row
+* `report-row subtotal` — subtotal row
+* `report-row total` — total row
+
+**Row content:**
+
+* `report-description` — description (category name)
+* `report-amount` — amount
+
+  * `positive` — green
+  * `negative` — red
+
+### 9.3 Highlighted Sections
 
 **Styling classes:**
-- report-section highlight - highlighted section
-- Used for gross and operating profit
-- Special visual design
 
-## 10. Uploading OPI data
+* `report-section highlight`
+* Used for gross and operating profit
+* Special visual emphasis
 
-### 10.1 Download Status
+---
+
+## 10. P&L Data Loading
+
+### 10.1 Loading States
 
 **Loading indicator**
-- BaseCard with the loading-card class
-- The spinner and the text "Loading data..."
-are displayed while isLoading === true
 
-###10.2 Data Source
+* `BaseCard` with `loading-card` class
+* Spinner and text **“Loading data…”**
+* Shown while `isLoading === true`
+
+### 10.2 Data Source
 
 **Data structure:**
-- revenues[] - revenue
-- costOfSales[] - cost price
-- operatingExpenses[] - operating expenses
-- otherIncomeExpenses[] - other income/expenses
 
-**Calculated indicators:**
-- totalRevenues - amount of income
+* `revenues[]`
+* `costOfSales[]`
+* `operatingExpenses[]`
+* `otherIncomeExpenses[]`
+
+**Calculated metrics:**
+
+* `totalRevenues`
+* `totalCostOfSales`
+* `grossProfit`
+* `totalOperatingExpenses`
+* `operatingProfit`
+* `totalOtherIncomeExpenses`
+* `netProfit`
+
+---
+
+## 11. Common Functions
+
+### 11.1 Currency Formatting
+
+**`formatCurrency()` function**
+
+* Locale: `ru-RU`
+* Minimum fraction digits: 0
+* Maximum fraction digits: 0
+* Thousands separators
+* Currency: ₸ (Kazakhstani tenge)
+
+**Examples:**
+
+* `1500000` → **“1 500 000 ₸”**
+* `-250000` → **“-250 000 ₸”**
+
+### 11.2 Report Export
+
+**For P&L:**
+
+* **Export** button
+* Format: Excel
+* Includes all report sections
+* Preserves formatting (colors, totals)
+
+---
+
+## 12. Responsiveness
+
+### 12.1 Desktop
+
+**Cash Flow:**
+
+* All filters in one row
+* Full-size tables
+* All period columns visible
+
+**P&L:**
+
+* Metrics grid 2×2
+* Wide report sections
+* All elements visible
+
+### 12.2 Mobile Devices
+
+**Cash Flow:**
+
+* Filters wrap to multiple rows
+* Horizontal table scrolling
+* Simplified period display
+
+**P&L:**
+
+* Metrics in a single column (1×4)
+* Compact report sections
+* Responsive font sizes
+
+---
+
+## 13. Performance
+
+**Optimizations:**
+
+* Lazy loading of tables
+* Caching of reference data
+* Conditional component rendering (`v-if`)
+* Debouncing on filter changes
+* Virtualization for large tables
+
+---
+
+## 14. Error Handling
+
+**On load error:**
+
+* Error message displayed
+* Retry option
+* Logging to console
+
+**When no data is available:**
+
+* Empty table with message
+* Suggestion to change the period
+* Link to create transactions
+
+---

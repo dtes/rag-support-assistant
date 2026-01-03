@@ -3,7 +3,8 @@ Router node - determines query type
 """
 from typing import Literal
 from agents.state import AgentState
-from llm_client import create_llm_client
+from infra.llm_client import create_llm_client
+from config.settings import settings
 
 # Import observe decorator
 try:
@@ -42,7 +43,7 @@ def route_query(state: AgentState) -> AgentState:
         span = trace.span(name="router", input={"query": query})
 
     # Create LLM client
-    llm = create_llm_client()
+    llm = create_llm_client(settings.llm)
 
     # System prompt for routing
     routing_prompt = f"""You are a query router for a financial SaaS system.

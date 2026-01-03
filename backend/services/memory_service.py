@@ -1,12 +1,12 @@
 """
 Chat Memory Service - manages conversation history using Redis or in-memory storage
+Clean service - no env reading, all configuration passed via constructor
 """
 import json
 from typing import List, Dict, Optional
 from datetime import datetime
 from collections import defaultdict
 import redis
-from config.settings import settings
 
 
 class InMemoryStore:
@@ -77,14 +77,20 @@ class InMemoryStore:
 class MemoryService:
     """Chat memory service with Redis or in-memory backend"""
 
-    def __init__(self):
-        """Initialize memory service based on configuration"""
-        self.memory_type = settings.redis.memory_type
+    def __init__(self, redis_url: Optional[str] = None, memory_type: str = "memory"):
+        """
+        Initialize memory service
 
-        if self.memory_type == "redis":
+        Args:
+            redis_url: Redis connection URL (e.g., "redis://redis:6379")
+            memory_type: Storage type ("redis" or "memory")
+        """
+        self.memory_type = memory_type
+
+        if self.memory_type == "redis" and redis_url:
             try:
                 self.client = redis.from_url(
-                    settings.redis.url,
+                    redis_url,
                     decode_responses=True
                 )
                 # Test connection
@@ -269,15 +275,3 @@ class MemoryService:
         except Exception as e:
             print(f"✗ Failed to get stats: {e}")
             return {"message_count": 0}
-
-
-# Global instance
-_memory_service: Optional[MemoryService] = None
-
-
-def get_memory_service() -> MemoryService:
-    """Get or create memory service instance"""
-    global _memory_service
-    if _memory_service is None:
-        _memory_service = MemoryService()
-    return _memory_service

@@ -2,7 +2,8 @@
 Tools node - executes API calls for operational data
 """
 from agents.state import AgentState
-from llm_client import create_llm_client
+from infra.llm_client import create_llm_client
+from config.settings import settings
 from tools.tool_definitions import FINANCE_TOOLS, set_user_context
 from langchain_core.messages import AIMessage, ToolMessage
 
@@ -31,7 +32,7 @@ def call_tools(state: AgentState) -> AgentState:
     set_user_context(user_id)
 
     # Create LLM with tools
-    llm = create_llm_client()
+    llm = create_llm_client(settings.llm)
     llm_with_tools = llm.bind_tools(FINANCE_TOOLS)
 
     # System prompt for tool calling

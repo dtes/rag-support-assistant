@@ -1,242 +1,216 @@
-# FinApp Functional Requirements
+# FinApp Documentation
 
-This documentation contains a detailed description of the functional requirements for all sections of the FinApp application.
+Welcome to the documentation for the **FinApp** financial management system!
 
-## Documentation structure
+## 📚 Documentation Structure
 
-### 1. [Operations](./operations.md )
-**Description:** Managing financial transactions, importing bank statements, and setting up automatic processing rules.
+### 🎯 [Introduction to FinApp](./introduction.md)
 
-**Main functions:**
-- View, create, and edit operations
-- Inline-editing of operation fields
-- Search and filtering by multiple parameters
-- Import of bank statements (Excel, PDF)
-- Management of automatic processing rules with Drag & Drop priorities
-- Export operations to Excel
+**Start here if you’re a new user!**
 
-**Key Features:**
-- 3 tabs: Operations, Import, Rules
-- Page-by-page loading of data
-- Mobile adaptation with inline editing
+This document includes:
 
----
+* What FinApp is for and what problems it solves
+* A step-by-step **Quick Start** guide (from registration to your first reports)
+* Setting up directories and uploading data
+* A typical workflow (daily/weekly/monthly)
+* Useful tips for effective work
+* Development roadmap and upcoming integrations (1C, banks, mobile app)
+* FAQ and support
 
-### 2. [Dashboard](./dashboard.md )
-**Description:** Visual overview of the financial condition of the business with key metrics and analytics.
+**Recommended for:**
 
-**Main components:**
-- Filter the period (current month, 3 months, year)
-- KPI metrics: Income, Expenses, Balance
-- Pie charts of income and expenses
-- Switching the grouping (by articles / by directions)
-
-**Key Features:**
-- "No data" status with calls to action
-- Dynamic formatting of amounts
-- Adaptive grid of metrics and charts
+* New users who have just signed up
+* Entrepreneurs who want to understand how the system can help their business
+* Anyone who wants to get started quickly without diving into all the details
 
 ---
 
-### 3. [Reports](./reports.md )
-**Description:** Two main financial statements - DDS and OPI.
+### 📋 [Functional Requirements](./functional-reqs/)
 
-#### DDS (Cash Flow) Report
-- Grouping: by articles, directions, accounts, counterparties, types of activity
-- Periodicity: by day, week, month, quarter, year
-- Drill-down to transactions
-- Full-screen mode
-- Increase display
+Detailed technical documentation for all sections of the application.
 
-#### OPiU (Profit and Loss) Report
-- Key indicators: Revenue, Gross profit, Operating profit, Net profit
-- Detailed structure: Income, Cost, Operating expenses, Other income/expenses
-- Dynamic color selection
+#### Section navigation:
 
-**General functions:**
-- Period selection
-- Export to Excel
-- Formatting the currency
+**📊 [Dashboard](./functional-reqs/dashboard.md)**
 
----
+* KPI metrics (Income, Expenses, Balance)
+* Analytical charts
+* Period filtering
+* Responsive UI
 
-### 4. [Reference Books](./references.md )
-**Description:** Application reference information management.
+**💰 [Transactions](./functional-reqs/operations.md)**
 
-**Sections:**
+* Financial transaction management
+* Inline editing
+* Bank statement import
+* Automation rules
+* Data export
 
-#### Business Accounts
-- Name, account number, account type, currency
-- CRUD operations
-- Validation upon deletion (verification of related operations)
+**📈 [Reports](./functional-reqs/reports.md)**
 
-#### Articles of operations
-- Grouping by transaction type (income, expenses, transfers)
-- Name, description, type of activity
-- System articles (cannot be edited/deleted)
+* Cash Flow Statement
+* Profit & Loss (P&L) report
+* Grouping and drill-down
+* Export to Excel
 
-#### Directions
-- Business lines
-- Name, description
-- CRUD operations
+**📖 [References](./functional-reqs/references.md)**
 
-#### Counterparties
-- Name, BIN/IIN, type, contact information
-- CRUD operations
-- Protection against deletion in the presence of operations
+* Business accounts
+* Transaction categories
+* Business lines
+* Counterparties
 
-**General functions:**
-- Modal windows for creating/editing
-- Data validation
-- Confirmation of deletion (Popconfirm)
-- Loading indication
+**🏢 [Workspace](./functional-reqs/workspace.md)**
 
----
+* Workspace information
+* Member management
+* Access rights
+* User invitations
 
-### 5. [Organization](./workspace.md )
-**Description:** Workspace and participant management.
+**👤 [Profile](./functional-reqs/profile.md)**
 
-#### Workspace Information
-- Name, Description, BIN
-- Date of creation
-- Viewing/editing mode
-- Validation of changes
+* Personal information
+* Security (2FA, password change)
+* Data validation
 
-#### Participant management
-- A list of participants with avatars and initials
-- Access Levels: Owner, Administrator, User, View Only
-- Positions
-- Inviting new participants
-- Changing roles
-- Removal of participants
+**Recommended for:**
 
-**Access rights:**
-- canEditWorkspace - edit information
-- canInviteMembers - invite participants
-- canManageMembers - member management
-
-**Restrictions:**
-- You can't delete the owner
-- You can't delete yourself
-- You cannot delete a single administrator
+* Developers working on the project
+* Product managers
+* QA engineers
+* Analysts
 
 ---
 
-### 6. [Profile](./profile.md )
-**Description:** Personal data management and account security.
+## 🗺️ Documentation Usage Map
 
-#### Personal information
-- An avatar with initials
-- First name, last name, email, phone number
-- Viewing/editing mode
-- Validation of fields (required fields, email/phone format)
-- Undo changes with recovery from backup
+### For users
 
-#### Security
+```
+New user
+    ↓
+📖 Read introduction.md
+    ↓
+Understand how the system works
+    ↓
+Follow the Quick Start
+    ↓
+Upload data and start working
+    ↓
+Dive into specific sections when needed
+```
 
-**Two-factor authentication (2FA):**
-- Status indicator (enabled/disabled)
-- On/off button
-- Setup via authenticator app
-- Code requirement when disabling
+### For developers
 
-**Password change:**
-- ChangePasswordModal modal window
-- Fields: current password, new password, confirmation
-- Password complexity validation:
-- Minimum 8 characters
-  - Uppercase and lowercase letters
-  - Numbers
-  - Special characters
-- Possible exit from all sessions
+```
+New task
+    ↓
+📋 Check functional-reqs/README.md
+    ↓
+Find the required section (e.g., operations.md)
+    ↓
+Study requirements and UI components
+    ↓
+Implement the functionality
+```
 
----
+### For product managers
 
-## General principles
-
-### Adaptability
-All sections are adapted for:
-- **Desktop** (> 768px): full functionality, multi-column grids
-- **Tablet** (480px - 768px): adaptive grids, optimized elements
-- **Mobile** (< 480px): single-column layouts, enlarged buttons (minimum 44px), full-screen modal windows
-
-### Error handling
-- Modal windows with detailed error descriptions
-- Validation on the client before sending to the server
-- Possibility to try again in case of errors
-- Saving the entered data in case of errors
-
-### Loading indication
-- Spinners when loading data (n-spin)
-- Loading the state of the buttons when performing operations
-- Blocking interaction during loading
-
-### Data validation
-- Checking required fields
-- Validation of formats (email, phone, BIN/IIN)
-- Check for uniqueness (where required)
-- Highlighting errors in red
-- Text error messages
-
-### Confirmation of actions
-- Popconfirm for deleting records
-- Modal windows for critical operations
-- Warnings about the consequences of actions
-- The ability to cancel operations
-
-### Performance
-- Page-by-page loading of data
-- Caching of directories
-- Lazy loading of components
-- Debounce for real-time search
-- Optimization of rendering of large lists
-
-### Formatting
-- **Numbers:** thousand separators, ru-RU locale
-- **Currency:** format "1,000,000 ₸"
-- **Dates:** DD.MM.YYYY or localized format
-- **Percentages:** indicating the ± sign for changes
-
-### Access rights
-- Differentiation of rights at the UI level
-- Hiding/deactivating unavailable functions
-- Checking rights before critical operations
-- Notifications of insufficient rights
+```
+Feature planning
+    ↓
+📋 Review existing requirements
+    ↓
+📖 Check alignment with the user journey (introduction.md)
+    ↓
+Extend/update requirements
+    ↓
+Align with the team
+```
 
 ---
 
-## UI Technology Stack
+## 📝 Quick Links
 
-- **Framework:** Vue 3 (Composition API / Options API)
-- **UI library:** Naive UI (n-card, n-button, n-input, n-table, n-select, etc.)
-- **Icons:** Vicons (ionicons5)
-- **Date formatting:** embedded JavaScript methods
-- **Validation of forms:** Built-in Naive UI validation
-- **Modal windows:** custom modal system
-- **Styles:** SCSS with CSS variables
+### For new users
 
----
+* [What is FinApp and why do I need it?](./introduction.md#-what-problems-does-finapp-solve)
+* [Quick Start: Where to begin?](./introduction.md#-quick-start-where-to-begin)
+* [How to upload data?](./introduction.md#step-3-upload-data)
+* [Typical workflow](./introduction.md#-typical-workflow)
+* [FAQ](./introduction.md#-need-help)
 
-## Navigation
+### For developers
 
-All sections are accessible via the side menu (AppSidebar):
-- Dashboard
-- Operations
-- Reports ▸
-- DDS Report
-- OPiU Report
-- Reference books ▸
-- Business accounts
-  - Articles of operations
-- Directions
-  - Counterparties
-- Organization
-- Profile (via UserAccountDropdown in the header)
+* [Overview of all sections](./functional-reqs/README.md)
+* [General UI principles](./functional-reqs/README.md#general-principles)
+* [Technology stack](./functional-reqs/README.md#ui-technology-stack)
+
+### For the team
+
+* [Roadmap](./introduction.md#-roadmap)
+* [Integrations (1C, banks)](./introduction.md#coming-soon)
 
 ---
 
-## Additional information
+## 🎯 Core FinApp Concepts
 
-For more detailed information on each section, please refer to the relevant documentation files.
+### Workspace
 
-**Date of last update:** December 22, 2024
+An isolated area for managing one business. A user can have multiple workspaces for different companies.
+
+### Transaction
+
+Any movement of money: income, expense, or transfer between accounts. A transaction is linked to an account and may have a category, counterparty, and business line.
+
+### References
+
+Data sets used to categorize and filter transactions:
+
+* **Accounts** — bank accounts, cash, cards
+* **Categories** — income and expense categories
+* **Business lines** — business areas or offices
+* **Counterparties** — customers and suppliers
+
+### Rules
+
+Automatic rules for categorizing imported transactions based on conditions (e.g., if the description contains “rent”, then category is “Office rent”).
+
+### Members
+
+Users who have access to a workspace with different permission levels (Owner, Administrator, User, View only).
+
+---
+
+## 🔄 Documentation Update Process
+
+### When to update
+
+1. **When functionality changes** — update the relevant section in `functional-reqs`
+2. **When adding a new feature** — describe it in `functional-reqs` and mention it in `introduction.md`
+3. **When UI/UX changes** — update screenshots and descriptions in `functional-reqs`
+4. **When common questions arise** — add them to the FAQ in `introduction.md`
+
+### How to update
+
+1. Find the relevant file in `docs/`
+2. Make your changes
+3. Update the “Last updated” date at the bottom of the file
+4. Update related sections if needed
+5. Make sure all links work
+
+---
+
+## 📞 Contacts
+
+### For users
+
+* **Email:** [support@finapp.kz](mailto:support@finapp.kz)
+* **Phone:** +7 (xxx) xxx-xx-xx
+* **Chat:** In the bottom-right corner of the app
+
+### For the team
+
+* **Slack:** #finapp-docs
+* **Email:** [team@finapp.kz](mailto:team@finapp.kz)

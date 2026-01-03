@@ -2,19 +2,39 @@
 Configuration settings for the RAG system
 """
 import os
+from pathlib import Path
 from typing import Optional
 from pydantic import BaseModel
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+# Look for .env in the project root (parent of backend directory)
+backend_dir = Path(__file__).resolve().parent.parent
+project_root = backend_dir.parent
+env_path = project_root / ".env"
+
+if env_path.exists():
+    load_dotenv(env_path)
+    print(f"✓ Loaded environment variables from {env_path}")
+else:
+    print(f"⚠ No .env file found at {env_path}")
 
 
 class LLMSettings(BaseModel):
     """LLM configuration"""
     provider: str = os.getenv("LLM_PROVIDER", "azure-openai")
+    # Azure OpenAI settings
     azure_endpoint: Optional[str] = os.getenv("AZURE_OPENAI_BASE_URL")
     azure_api_key: Optional[str] = os.getenv("AZURE_OPENAI_API_KEY")
     azure_api_version: Optional[str] = os.getenv("AZURE_OPENAI_API_VERSION")
     azure_deployment: Optional[str] = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+    # OpenAI settings
+    api_key: Optional[str] = os.getenv("OPENAI_API_KEY")
+    model: Optional[str] = os.getenv("OPENAI_MODEL", "gpt-4")
+    # Ollama settings
     ollama_url: str = os.getenv("OLLAMA_URL", "http://ollama:11434")
     ollama_model: str = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
+    # General settings
     temperature: float = 0.7
     max_tokens: int = 1000
 
@@ -26,8 +46,16 @@ class EmbeddingSettings(BaseModel):
 
 class ChunkingSettings(BaseModel):
     """Chunking configuration"""
+    # Common settings
+    method: str = os.getenv("CHUNKING_METHOD", "recursive")  # Options: "recursive", "semantic"
+
+    # RecursiveCharacterTextSplitter settings
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "500"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "50"))
+
+    # SemanticChunker settings
+    semantic_breakpoint_type: str = os.getenv("SEMANTIC_BREAKPOINT_TYPE", "percentile")  # Options: "percentile", "standard_deviation", "interquartile"
+    semantic_breakpoint_threshold: int = int(os.getenv("SEMANTIC_BREAKPOINT_THRESHOLD", "95"))  # For percentile: 90-99, for std_dev: 1-3
 
 
 class WeaviateSettings(BaseModel):
@@ -94,6 +122,21 @@ class CacheSettings(BaseModel):
     ttl_generator: int = 900  # 15 minutes - generated answers
 
 
+class EvaluationSettings(BaseModel):
+    # Metrics to evaluate
+    # Note: context_precision and context_recall require ground_truth (reference answers)
+    # If use_ground_truth is False, these metrics will be automatically skipped
+    metrics: list[str] = [
+        "answer_relevancy",    # Measures relevance of answer to question
+        "faithfulness",        # Measures factual consistency with retrieved contexts
+        "context_precision",   # Requires ground_truth - measures retrieval precision
+        "context_recall"       # Requires ground_truth - measures retrieval recall
+    ]
+    # Whether to use ground_truth in evaluation (requires reference answers in dataset)
+    # Set to True only when you have ground truth answers available
+    use_ground_truth: bool = True
+
+
 class AppSettings(BaseModel):
     """Main application settings"""
     # Demo user for testing (hardcoded)
@@ -109,7 +152,7 @@ class AppSettings(BaseModel):
     langfuse: LangFuseSettings = LangFuseSettings()
     rag: RAGSettings = RAGSettings()
     cache: CacheSettings = CacheSettings()
-
+    evaluation: EvaluationSettings = EvaluationSettings()
 
 # Global settings instance
 settings = AppSettings()
