@@ -34,7 +34,7 @@ cd backend
 python -m pytest tests/test_rag_metrics.py -v
 ```
 
-**Важно:** Тесты по умолчанию используют `/chat/debug` endpoint для получения полных документов с content. Это необходимо для корректного расчета RAGAS метрик.
+**Важно:** Тесты по умолчанию используют `/chat/debug` endpoint для получения полных документов с content через поле `retrieved_docs`. Это необходимо для корректного расчета RAGAS метрик. Каждый запрос использует случайные `user_id` и `session_id`.
 
 ### Использование
 
@@ -80,26 +80,24 @@ python tests/test_rag_metrics.py \
 
 ### Что делают тесты
 
-1. **test_rag_metrics_on_dataset** - основной тест:
-   - Загружает evaluation датасет
-   - Отправляет каждый вопрос в RAG API
-   - Получает answer и sources
-   - Запускает RAGAS evaluation
-   - Проверяет минимальные пороги качества
-   - Сохраняет детальный отчет
+**test_rag_metrics_on_dataset** - основной тест:
+- Загружает evaluation датасет
+- Отправляет каждый вопрос в RAG API (`/chat/debug`)
+- Получает answer, sources и retrieved_docs с полным content
+- Извлекает contexts из retrieved_docs для RAGAS evaluation
+- Запускает RAGAS evaluation с метриками (faithfulness, answer_relevancy, context_precision, context_recall)
+- Проверяет минимальные пороги качества (закомментированы по умолчанию)
+- Сохраняет детальный отчет в `tests/results/`
 
-2. **test_single_rag_example** - smoke test:
-   - Быстрый тест на одном примере
-   - Проверяет что RAG pipeline работает
-   - Полезен для отладки
+**Примечание:** Тест `test_single_rag_example` (smoke test на одном примере) закомментирован в текущей версии.
 
 ### Результаты
 
 Результаты сохраняются в:
 ```
-evaluation/results/
-├── dataset_results_20260101_120000.json
-├── dataset-2_results_20260101_130000.json
+tests/results/
+├── dataset_results_20260103_120000.json
+├── dataset_results_20260103_130000.json
 └── ...
 ```
 
@@ -107,18 +105,39 @@ evaluation/results/
 ```json
 {
   "metadata": {
-    "dataset_path": "evaluation/dataset.json",
-    "timestamp": "20260101_120000",
+    "dataset_path": "tests/dataset.json",
+    "api_url": "http://localhost:8000/chat/debug",
+    "timestamp": "20260103_120000",
     "total_examples": 10,
     "successful": 9,
     "failed": 1
   },
   "aggregate_scores": {
-    "overall": {"average": 0.78, "min": 0.65, "max": 0.89},
-    "faithfulness": {"average": 0.82, "min": 0.70, "max": 0.95},
-    "answer_relevancy": {"average": 0.75, "min": 0.60, "max": 0.85}
+    "answer_relevancy": {"average": 0.75, "min": 0.60, "max": 0.85, "count": 9},
+    "faithfulness": {"average": 0.82, "min": 0.70, "max": 0.95, "count": 9},
+    "context_precision": {"average": 0.78, "min": 0.65, "max": 0.89, "count": 9},
+    "context_recall": {"average": 0.80, "min": 0.68, "max": 0.92, "count": 9},
+    "overall": {"average": 0.79, "min": 0.66, "max": 0.90, "count": 9}
   },
-  "detailed_results": [...]
+  "detailed_results": [
+    {
+      "question": "...",
+      "answer": "...",
+      "ground_truth": "...",
+      "query_type": "documentation",
+      "sources_count": 3,
+      "contexts_count": 3,
+      "contexts": ["...", "...", "..."],
+      "scores": {
+        "answer_relevancy": 0.85,
+        "faithfulness": 0.90,
+        "context_precision": 0.88,
+        "context_recall": 0.82,
+        "overall": 0.86
+      },
+      "status": "success"
+    }
+  ]
 }
 ```
 
@@ -134,15 +153,24 @@ evaluation/results/
 
 ### Пороги качества
 
-По умолчанию в тестах установлены минимальные пороги:
+**ВАЖНО:** В текущей версии проверки порогов качества **закомментированы** (строки 397-398, 405, 411 в `test_rag_metrics.py`).
+
+Тест выполнит evaluation и выведет результаты, но не будет падать при низких scores.
+
+Если вы хотите включить проверку качества, раскомментируйте соответствующие assert'ы:
 
 ```python
+# В test_rag_metrics.py, строки 396-411
 MIN_QUALITY_THRESHOLD = 0.5  # Overall quality >= 50%
-MIN_FAITHFULNESS = 0.6       # No hallucinations >= 60%
-MIN_RELEVANCY = 0.6          # Relevancy >= 60%
-```
+assert overall_avg >= MIN_QUALITY_THRESHOLD, \
+    f"RAG quality ({overall_avg:.4f}) below threshold ({MIN_QUALITY_THRESHOLD})"
 
-Вы можете изменить их в файле `test_rag_metrics.py` под ваши требования.
+# Faithfulness check
+assert faithfulness_avg >= 0.6, "Faithfulness score too low (possible hallucinations)"
+
+# Relevancy check
+assert relevancy_avg >= 0.6, "Answer relevancy too low"
+```
 
 ### Интеграция в CI/CD
 
@@ -189,7 +217,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: rag-metrics-results
-          path: backend/evaluation/results/
+          path: backend/tests/results/
 ```
 
 ### Debug Endpoint
@@ -210,10 +238,14 @@ jobs:
 **Пример использования вручную:**
 
 ```bash
-# Тест через debug endpoint
+# Тест через debug endpoint (требует user_id и session_id)
 curl -X POST http://localhost:8000/chat/debug \
   -H "Content-Type: application/json" \
-  -d '{"message": "How to import bank statements?"}'
+  -d '{
+    "message": "How to use the system?",
+    "user_id": "user-12345",
+    "session_id": "session-67890"
+  }'
 
 # Ответ содержит retrieved_docs с content:
 {

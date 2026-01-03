@@ -89,7 +89,7 @@ The system uses LangChain's `SemanticChunker` with HuggingFace embeddings. Durin
 
 ## Evaluation Strategies
 
-Three distinct strategies were evaluated:
+Five distinct strategies were evaluated:
 
 1. **Fixed chaking. BM25 without Reranking**
    - `CHUNKING_METHOD=recursive`
@@ -193,7 +193,7 @@ The following metrics were collected using the RAGAS framework, which evaluates 
 
 ### System Performance Notes
 
-**Latency and Cost Analysis**: The latency and cost per token metrics showed minimal variation across the three strategies, indicating that the choice of search method and reranking does not significantly impact system performance overhead.
+**Latency and Cost Analysis**: The latency and cost per token metrics showed minimal variation across the five strategies, indicating that the choice of search method and reranking does not significantly impact system performance overhead.
 
 **Caching Implementation**: To further optimize system performance, exact-match caching (non-semantic) was implemented at each node level of graph RAG. This caching mechanism provides substantial improvements:
 

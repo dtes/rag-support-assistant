@@ -45,7 +45,7 @@ from config.settings import settings
 class RAGMetricsTester:
     """RAG system quality testing using RAGAS framework"""
 
-    def __init__(self, api_url: str = "http://localhost:8000/chat", use_debug: bool = True):
+    def __init__(self, api_url: str = "http://localhost:8000/chat/debug", use_debug: bool = True):
         """
         Initialize tester
 
