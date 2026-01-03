@@ -2,7 +2,7 @@
 
 **[Demo video](https://drive.google.com/file/d/1GMQpI4IfFaW4LdxmHwXNGxBdpU7HqkRk/view?usp=sharing)**
 
-[**REPORT_MODULE_4.md**](REPORT_MODULE_4.md) - Module 4 report
+[**Module 4 Report**](REPORT_MODULE_4.md)
 
 ## Core Idea
 
