@@ -7,32 +7,33 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, List
 from context import AppContext
+from contextlib import asynccontextmanager
 from api.dependencies import set_context, AppContextDep
 from agents.graph import process_query
 import os
 
-app = FastAPI(title="RAG Finance Assistant API")
 
 # Global app context
 app_context: Optional[AppContext] = None
 
-
-@app.on_event("startup")
-async def startup():
-    """Initialize application context on startup"""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize application context on startup
     global app_context
     app_context = AppContext()
     app_context.startup()
     set_context(app_context)
     print("✅ Application started successfully")
 
+    yield
 
-@app.on_event("shutdown")
-async def shutdown():
-    """Cleanup application context on shutdown"""
+    # Cleanup application context on shutdown
     if app_context:
         app_context.shutdown()
     print("✅ Application stopped")
+
+
+app = FastAPI(title="RAG Finance Assistant API", lifespan=lifespan)
 
 class ChatRequest(BaseModel):
     message: str
